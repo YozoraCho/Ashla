@@ -85,7 +85,8 @@ dotnet run --no-build --project .\src\Ashla.Host -- --gui --watch "$env:USERPROF
 ```
 
 Combat Logging must be on in SWTOR (Preferences → Combat Logging). `--watch` starts at the end of the newest
-log and only shows **new** lines; `--replay` is for past fights.
+log and only shows **new** lines; a log SWTOR starts after that (a new login) is read from its first line, so its
+area line isn't missed. `--replay` is for past fights.
 
 ## Overlay mode
 
