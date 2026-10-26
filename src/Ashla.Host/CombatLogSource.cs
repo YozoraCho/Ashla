@@ -45,6 +45,7 @@ internal static class CombatLogSource
         using var partialLine = new MemoryStream();
         byte[] chunk = new byte[16 * 1024];
         bool warnedMissing = false;
+        bool firstScan = true;
 
         while (!token.IsCancellationRequested)
         {
@@ -68,6 +69,8 @@ internal static class CombatLogSource
                              || Path.GetExtension(p).Equals(".log", StringComparison.OrdinalIgnoreCase))
                     .OrderByDescending(File.GetLastWriteTimeUtc)
                     .FirstOrDefault();
+                bool startup = firstScan;
+                firstScan = false;
 
                 if (latest is null)
                 {
@@ -79,9 +82,9 @@ internal static class CombatLogSource
                 {
                     currentFile = latest;
                     session = new CombatLogSession(latest);
-                    position = new FileInfo(latest).Length;
+                    position = startup ? new FileInfo(latest).Length : 0;
                     partialLine.SetLength(0);
-                    log.Info($"Active log: {Path.GetFileName(latest)} (tailing from end)");
+                    log.Info($"Active log: {Path.GetFileName(latest)} ({(startup ? "tailing from end" : "new file, reading from the start")})");
                     status?.SetActiveFile(latest);
                 }
 

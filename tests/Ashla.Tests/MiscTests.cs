@@ -167,6 +167,33 @@ public class CombatLogStatusTests
         Assert.Equal([false, true], existsChanges);
     }
 
+    [Fact]
+    public async Task Watch_SkipsTheLogThatWasThereAtStart_ButReadsANewOneFromTheStart()
+    {
+        using var temp = new TempDirectory();
+        const string line = "[00:40:01.000] [@P#1|(0,0,0,0)|(1/1)] [] [] [Event {836045448945472}: EnterCombat {836045448945489}]\r\n";
+        var old = Path.Combine(temp.Path, "combat_2026-10-23_00_40_00_000000.txt");
+        File.WriteAllText(old, line);
+        File.SetLastWriteTimeUtc(old, DateTime.UtcNow.AddMinutes(-5));
+        var log = new TestLogger();
+        var bus = new EventBus(log);
+        int seen = 0;
+        using var subscription = bus.Subscribe<Ashla.SDK.CombatEvent>(_ => Interlocked.Increment(ref seen));
+        var status = new CombatLogStatus();
+        using var cts = new CancellationTokenSource();
+
+        var watch = Task.Run(() => CombatLogSource.WatchAsync(temp.Path, bus, log, cts.Token, status));
+        await WaitFor(() => status.ActiveFile == old);
+        var fresh = Path.Combine(temp.Path, "combat_2026-10-23_01_00_00_000000.txt");
+        File.WriteAllText(fresh, line + line.Replace("EnterCombat {836045448945489}", "ExitCombat {836045448945490}"));
+        await WaitFor(() => Volatile.Read(ref seen) == 2);
+
+        cts.Cancel();
+        await watch.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Equal(fresh, status.ActiveFile);
+        Assert.Contains(log.Lines, l => l.Contains("reading from the start"));
+    }
+
     private static async Task WaitFor(Func<bool> condition)
     {
         var deadline = DateTime.UtcNow.AddSeconds(10);
