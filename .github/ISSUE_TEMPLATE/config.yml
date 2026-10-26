@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Submit or report a plugin
+    url: https://github.com/YozoraCho/Holocron
+    about: Plugin submissions and plugin-specific problems go to Holocron or the plugin's own repository.
+  - name: Report a security problem
+    url: https://github.com/YozoraCho/Ashla/security/advisories/new
+    about: Report vulnerabilities and malicious plugins privately.

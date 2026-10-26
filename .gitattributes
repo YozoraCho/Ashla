@@ -1,0 +1,5 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Real SWTOR combat-log samples: keep exact bytes (Windows-1252, CRLF) for parser tests.
+tests/combat-logs/combat_*.txt -text

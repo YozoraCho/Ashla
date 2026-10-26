@@ -1,0 +1,11 @@
+<Solution>
+  <Project Path="src/Ashla.SDK/Ashla.SDK.csproj" />
+  <Project Path="src/Ashla.Rendering/Ashla.Rendering.csproj" />
+  <Project Path="src/Ashla.CombatLog/Ashla.CombatLog.csproj" />
+  <Project Path="src/Ashla.UI/Ashla.UI.csproj" />
+  <Project Path="src/Ashla.Host/Ashla.Host.csproj" />
+  <Project Path="samples/HelloWorld/HelloWorld.csproj" />
+  <Project Path="samples/CombatCounter/CombatCounter.csproj" />
+  <Project Path="samples/HelloWorldOverlay/HelloWorldOverlay.csproj" />
+  <Project Path="tests/Ashla.Tests/Ashla.Tests.csproj" />
+</Solution>

@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <Version>0.3.0</Version>
+    <Product>Ashla</Product>
+    <Description>External SWTOR plugin host: overlay panels and combat-log tools. No injection or memory access.</Description>
+    <!-- Win32 window queries for overlay tracking and the tray icon (LibraryImport). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationIcon>Assets\ashla.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <!--
+    Player build (scripts/publish.ps1 sets AshlaPlayerBuild=true): a windowed Ashla.exe with no console window;
+    double-clicking it starts overlay mode and watches SWTOR's combat-log folder. Developer builds keep the
+    console and the v0.1 behavior (no arguments = console demo).
+  -->
+  <PropertyGroup Condition="'$(AshlaPlayerBuild)' == 'true'">
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>Ashla</AssemblyName>
+    <DefineConstants>$(DefineConstants);ASHLA_PLAYER</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Embedding the icon into a Windows exe only works when building on Windows; elsewhere the SDK warns. -->
+  <PropertyGroup Condition="!$([MSBuild]::IsOSPlatform('Windows'))">
+    <NoWarn>$(NoWarn);NETSDK1074</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Ashla.SDK/Ashla.SDK.csproj" />
+    <ProjectReference Include="../Ashla.Rendering/Ashla.Rendering.csproj" />
+    <ProjectReference Include="../Ashla.CombatLog/Ashla.CombatLog.csproj" />
+    <ProjectReference Include="../Ashla.UI/Ashla.UI.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Also referenced transitively via Ashla.Rendering; explicit because the host GUI code calls ImGui. -->
+    <PackageReference Include="Hexa.NET.ImGui" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Loose next to the exe (not inside a single-file bundle) so the tray can load it. -->
+    <None Include="Assets\ashla.ico" Link="ashla.ico" CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Ashla.Tests" />
+  </ItemGroup>
+</Project>

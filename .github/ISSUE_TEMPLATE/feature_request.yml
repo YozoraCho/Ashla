@@ -1,0 +1,26 @@
+name: Feature request
+description: Suggest a feature or improvement for Ashla.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ashla only uses the combat log and its own overlay window. It never reads game memory, injects into the
+        game, or automates input, so features that need those can't be added.
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+      description: Describe the feature and the problem it solves.
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: Where would the data come from?
+      description: If it needs combat data, which log events contain it? Example lines help (anonymize names).
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Other tools or workarounds you use today.

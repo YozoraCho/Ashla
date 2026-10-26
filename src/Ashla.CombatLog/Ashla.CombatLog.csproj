@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../Package.props" />
+  <PropertyGroup>
+    <Description>Parses Star Wars: The Old Republic combat-log lines into Ashla.SDK combat events. For tests and tools around Ashla plugins.</Description>
+  </PropertyGroup>
+  <!--
+    SWTOR combat-log parsing: turns raw log lines into Ashla.SDK CombatEvent records. No UI or host
+    dependencies, so it can be tested on its own and reused by tools.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../Ashla.SDK/Ashla.SDK.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Ashla.Tests" />
+  </ItemGroup>
+</Project>

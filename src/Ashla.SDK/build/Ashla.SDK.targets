@@ -1,0 +1,116 @@
+<Project>
+  <PropertyGroup>
+    <AshlaApiLevel Condition="'$(AshlaApiLevel)' == ''">1</AshlaApiLevel>
+    <AshlaPluginName Condition="'$(AshlaPluginName)' == ''">$(AssemblyName)</AshlaPluginName>
+    <AshlaPluginRepository Condition="'$(AshlaPluginRepository)' == ''">$(RepositoryUrl)</AshlaPluginRepository>
+  </PropertyGroup>
+
+  <UsingTask TaskName="AshlaPluginManifestTask" TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <OutputDirectory ParameterType="System.String" Required="true" />
+      <Id ParameterType="System.String" Required="true" />
+      <Name ParameterType="System.String" />
+      <Version ParameterType="System.String" />
+      <Author ParameterType="System.String" />
+      <Description ParameterType="System.String" />
+      <Repository ParameterType="System.String" />
+      <Tags ParameterType="System.String" />
+      <ApiLevel ParameterType="System.Int32" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System" />
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Linq" />
+      <Using Namespace="System.Security.Cryptography" />
+      <Using Namespace="System.Text" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+string Quote(string value)
+{
+    if (string.IsNullOrEmpty(value)) return "null";
+    var text = new StringBuilder("\"");
+    foreach (var c in value)
+    {
+        switch (c)
+        {
+            case '"': text.Append("\\\""); break;
+            case '\\': text.Append("\\\\"); break;
+            case '\n': text.Append("\\n"); break;
+            case '\r': text.Append("\\r"); break;
+            case '\t': text.Append("\\t"); break;
+            default:
+                if (c < 0x20) text.Append("\\u").Append(((int)c).ToString("x4"));
+                else text.Append(c);
+                break;
+        }
+    }
+    return text.Append('"').ToString();
+}
+
+var root = Path.GetFullPath(OutputDirectory).TrimEnd('\\', '/');
+var files = Directory.GetFiles(root, "*", SearchOption.AllDirectories)
+    .Select(path => path.Substring(root.Length).TrimStart('\\', '/').Replace('\\', '/'))
+    .Where(path => !path.Equals("manifest.json", StringComparison.OrdinalIgnoreCase) &&
+                   !path.EndsWith(".pdb", StringComparison.OrdinalIgnoreCase))
+    .OrderBy(path => path, StringComparer.Ordinal)
+    .ToList();
+var tags = (Tags ?? "").Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries)
+    .Select(tag => tag.Trim()).Where(tag => tag.Length > 0).ToList();
+
+var json = new StringBuilder();
+json.Append("{\n");
+json.Append("  \"Id\": ").Append(Quote(Id)).Append(",\n");
+json.Append("  \"Name\": ").Append(Quote(string.IsNullOrEmpty(Name) ? Id : Name)).Append(",\n");
+json.Append("  \"Version\": ").Append(Quote(Version)).Append(",\n");
+json.Append("  \"Author\": ").Append(Quote(Author == Id ? null : Author)).Append(",\n");
+json.Append("  \"Description\": ").Append(Quote(Description)).Append(",\n");
+json.Append("  \"ApiLevel\": ").Append(ApiLevel).Append(",\n");
+json.Append("  \"Repository\": ").Append(Quote(Repository)).Append(",\n");
+json.Append("  \"Tags\": [").Append(string.Join(", ", tags.Select(Quote))).Append("],\n");
+json.Append("  \"Files\": {");
+for (int i = 0; i < files.Count; i++)
+{
+    string hash;
+    using (var sha = SHA256.Create())
+    using (var stream = File.OpenRead(Path.Combine(root, files[i])))
+        hash = BitConverter.ToString(sha.ComputeHash(stream)).Replace("-", "").ToLowerInvariant();
+    json.Append(i == 0 ? "\n" : ",\n").Append("    ").Append(Quote(files[i])).Append(": ").Append(Quote(hash));
+}
+json.Append(files.Count == 0 ? "}\n" : "\n  }\n");
+json.Append("}\n");
+
+var target = Path.Combine(root, "manifest.json");
+var content = json.ToString();
+if (!File.Exists(target) || File.ReadAllText(target) != content) File.WriteAllText(target, content, new UTF8Encoding(false));
+Log.LogMessage(MessageImportance.Normal, "Wrote " + target + " (" + files.Count + " files)");
+]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="AshlaSkipHostAssemblies" AfterTargets="ResolvePackageAssets" Condition="'$(EnableDynamicLoading)' == 'true'">
+    <ItemGroup>
+      <RuntimeCopyLocalItems Remove="@(RuntimeCopyLocalItems)"
+                             Condition="'%(RuntimeCopyLocalItems.NuGetPackageId)' == 'Ashla.SDK' Or '%(RuntimeCopyLocalItems.NuGetPackageId)' == 'Ashla.UI' Or '%(RuntimeCopyLocalItems.NuGetPackageId)' == 'Hexa.NET.ImGui' Or '%(RuntimeCopyLocalItems.NuGetPackageId)' == 'HexaGen.Runtime'" />
+      <NativeCopyLocalItems Remove="@(NativeCopyLocalItems)"
+                            Condition="'%(NativeCopyLocalItems.NuGetPackageId)' == 'Hexa.NET.ImGui'" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="AshlaWritePluginManifest" AfterTargets="Build"
+          Condition="'$(EnableDynamicLoading)' == 'true' And '$(AshlaWritePluginManifest)' != 'false'">
+    <AshlaPluginManifestTask OutputDirectory="$(OutDir)" Id="$(AssemblyName)" Name="$(AshlaPluginName)"
+                             Version="$(Version)" Author="$(Authors)" Description="$(Description)"
+                             Repository="$(AshlaPluginRepository)" Tags="$(AshlaPluginTags)" ApiLevel="$(AshlaApiLevel)" />
+  </Target>
+
+  <Target Name="AshlaCopyPlugin" AfterTargets="Build" DependsOnTargets="AshlaWritePluginManifest"
+          Condition="'$(EnableDynamicLoading)' == 'true' And '$(AshlaPluginsDir)' != ''">
+    <ItemGroup>
+      <_AshlaPluginOutput Include="$(OutDir)**/*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_AshlaPluginOutput)"
+          DestinationFiles="@(_AshlaPluginOutput->'$([MSBuild]::EnsureTrailingSlash('$(AshlaPluginsDir)'))$(AssemblyName)/%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Message Importance="normal" Text="Copied $(AssemblyName) to $(AshlaPluginsDir)" />
+  </Target>
+</Project>

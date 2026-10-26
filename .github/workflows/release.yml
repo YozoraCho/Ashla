@@ -1,0 +1,43 @@
+name: Release
+
+# Push a tag like v0.3.0 to build the player zip and publish it as a GitHub release.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Check the tag matches the project version
+        shell: pwsh
+        run: |
+          $version = (dotnet msbuild src/Ashla.Host/Ashla.Host.csproj -getProperty:Version).Trim()
+          if ("v$version" -ne $env:GITHUB_REF_NAME) {
+            throw "Tag $env:GITHUB_REF_NAME doesn't match <Version>$version</Version> in Ashla.Host.csproj"
+          }
+
+      - name: Test
+        run: dotnet test Ashla.slnx -c Release
+
+      - name: Build the player zip
+        shell: pwsh
+        run: ./scripts/publish.ps1
+
+      - name: Create the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $zip = Get-ChildItem artifacts -Filter 'Ashla-*-win-x64.zip' | Select-Object -First 1
+          if (-not $zip) { throw 'No player zip was produced' }
+          gh release create $env:GITHUB_REF_NAME $zip.FullName --title "Ashla $env:GITHUB_REF_NAME" --generate-notes

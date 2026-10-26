@@ -1,0 +1,19 @@
+<Project>
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <Version>$(AshlaSdkVersion)</Version>
+    <Authors>YozoraCho and Ashla contributors</Authors>
+    <PackageProjectUrl>https://github.com/YozoraCho/Ashla</PackageProjectUrl>
+    <PackageIcon>ashla-mark.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>swtor;star-wars-the-old-republic;ashla;plugin;overlay;combat-log</PackageTags>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)../docs/images/ashla-mark.png" Pack="true" PackagePath="" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)PACKAGE.md" Pack="true" PackagePath="README.md" Visible="false" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AshlaPluginName>Hello World Overlay</AshlaPluginName>
+    <AshlaPluginTags>sample</AshlaPluginTags>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <Version>0.2.0</Version>
+    <Authors>Ashla contributors</Authors>
+    <Description>Example plugin that registers a "Hello, SWTOR!" Dear ImGui window.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Ashla.SDK/Ashla.SDK.csproj">
+      <Private>false</Private>
+    </ProjectReference>
+    <ProjectReference Include="../../src/Ashla.UI/Ashla.UI.csproj">
+      <Private>false</Private>
+    </ProjectReference>
+    <!--
+      Hexa.NET.ImGui is provided by the host and shared with every plugin (one native ImGui context).
+      Compile against it, but don't copy it (or its native cimgui library) into the plugin folder.
+    -->
+    <PackageReference Include="Hexa.NET.ImGui" ExcludeAssets="runtime;native" />
+  </ItemGroup>
+</Project>

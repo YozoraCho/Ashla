@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../Package.props" />
+  <!--
+    Optional UI kit for plugins that draw with Dear ImGui: Ashla's color palette and theme, the host's
+    headline font, and small drawing helpers (meter bars, segmented tabs). Shared by the host like Ashla.SDK
+    and Hexa.NET.ImGui, so plugins reference it with Private=false and never ship a copy.
+    The core SDK stays free of UI dependencies; only UI plugins need this.
+  -->
+  <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Description>Optional UI kit for Ashla plugins that draw with Dear ImGui: Ashla's themes and colors, the headline font, meter bars and tabs. Provided by Ashla at run time.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <!--
+      Projects that reference this one compile against Hexa.NET.ImGui but don't get its runtime files: the host
+      references the package itself, and plugins must use the host's copy (also of HexaGen.Runtime).
+    -->
+    <PackageReference Include="Hexa.NET.ImGui"
+                      PrivateAssets="runtime;native;contentfiles;analyzers;build" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Ashla.Host" />
+    <!-- Host assembly name in the player build (AshlaPlayerBuild=true). -->
+    <InternalsVisibleTo Include="Ashla" />
+    <InternalsVisibleTo Include="Ashla.Tests" />
+  </ItemGroup>
+</Project>

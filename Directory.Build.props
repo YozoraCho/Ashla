@@ -1,0 +1,19 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <IsPackable>false</IsPackable>
+    <AshlaSdkVersion>1.0.0</AshlaSdkVersion>
+  </PropertyGroup>
+
+  <!-- Package metadata shared by every project. Package versions live in Directory.Packages.props. -->
+  <PropertyGroup>
+    <Copyright>Copyright (C) 2026 YozoraCho and Ashla contributors</Copyright>
+    <PackageLicenseExpression>AGPL-3.0-only</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/YozoraCho/Ashla</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+</Project>

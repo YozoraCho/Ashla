@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Standalone desktop rendering subsystem: a GLFW window (Silk.NET), an OpenGL 3.3 renderer and a
+    Dear ImGui (Hexa.NET.ImGui) platform/renderer backend. It knows nothing about plugins, the SDK or combat
+    logs; the host decides what to draw each frame.
+  -->
+  <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Hexa.NET.ImGui" />
+    <PackageReference Include="Silk.NET.Windowing" />
+    <PackageReference Include="Silk.NET.Input" />
+    <PackageReference Include="Silk.NET.OpenGL" />
+    <PackageReference Include="StbImageSharp" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Ashla.Tests" />
+  </ItemGroup>
+</Project>

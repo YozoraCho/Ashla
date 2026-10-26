@@ -1,0 +1,30 @@
+<Project>
+  <!--
+    Every NuGet package version used in the repository, in one place (central package management).
+    Projects reference packages without a Version.
+
+    Hexa.NET.ImGui is a host-provided shared assembly: plugins compile against it but must not ship their own
+    copy (they reference it with ExcludeAssets="runtime;native"), so its version here is the plugin UI contract.
+    2.2.9 = Dear ImGui 1.92.2b (docking branch). 3.1.0-experimental (Dear ImGui 1.92.9b) also builds and runs
+    unchanged; switch by editing AshlaHexaImGuiVersion. Plugins built against one version should be rebuilt for
+    the other.
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <AshlaHexaImGuiVersion>2.2.9</AshlaHexaImGuiVersion>
+    <AshlaSilkNetVersion>2.23.0</AshlaSilkNetVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- UI stack -->
+    <PackageVersion Include="Hexa.NET.ImGui" Version="$(AshlaHexaImGuiVersion)" />
+    <PackageVersion Include="Silk.NET.Windowing" Version="$(AshlaSilkNetVersion)" />
+    <PackageVersion Include="Silk.NET.Input" Version="$(AshlaSilkNetVersion)" />
+    <PackageVersion Include="Silk.NET.OpenGL" Version="$(AshlaSilkNetVersion)" />
+    <!-- Decodes the PNG images inside ashla.ico (window icon, launcher logo). Public domain / MIT, managed only. -->
+    <PackageVersion Include="StbImageSharp" Version="2.30.16" />
+    <!-- Tests -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+</Project>

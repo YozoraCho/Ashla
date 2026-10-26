@@ -1,0 +1,59 @@
+name: Bug report
+description: Something in Ashla doesn't work as expected.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. A log file helps most: right-click Ashla's tray icon and choose **Open log file**
+        (logs are in `%LOCALAPPDATA%\Ashla\logs`). Problems with a plugin from Holocron belong in that plugin's
+        own repository.
+  - type: input
+    id: version
+    attributes:
+      label: Ashla version
+      description: Shown in the Ashla window, or in the zip's name (e.g. Ashla-0.3.0-win-x64).
+      placeholder: 0.3.0
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start SWTOR in Fullscreen (Windowed)
+        2. Start Ashla
+        3. ...
+  - type: dropdown
+    id: display-mode
+    attributes:
+      label: SWTOR display mode
+      options:
+        - Fullscreen (Windowed)
+        - Windowed
+        - Fullscreen
+        - Not related to the game
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version and display scaling
+      placeholder: Windows 11, 125%
+  - type: textarea
+    id: plugins
+    attributes:
+      label: Installed plugins
+      description: From the Plugin Manager.
+      placeholder: Combat Meter 0.1.0
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: Paste the relevant part of the log file. Remove anything you consider private.
+      render: text

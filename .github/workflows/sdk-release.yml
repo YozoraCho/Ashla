@@ -1,0 +1,54 @@
+name: SDK release
+
+on:
+  push:
+    tags: ['sdk-v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Check the tag matches the SDK version
+        shell: pwsh
+        run: |
+          $version = (dotnet msbuild src/Ashla.SDK/Ashla.SDK.csproj -getProperty:Version).Trim()
+          if ("sdk-v$version" -ne $env:GITHUB_REF_NAME) {
+            throw "Tag $env:GITHUB_REF_NAME doesn't match <AshlaSdkVersion>$version</AshlaSdkVersion> in Directory.Build.props"
+          }
+
+      - name: Test
+        run: dotnet test Ashla.slnx -c Release
+
+      - name: Pack
+        run: |
+          dotnet pack src/Ashla.SDK/Ashla.SDK.csproj -c Release -o artifacts/nuget -p:ContinuousIntegrationBuild=true
+          dotnet pack src/Ashla.UI/Ashla.UI.csproj -c Release -o artifacts/nuget -p:ContinuousIntegrationBuild=true
+          dotnet pack src/Ashla.CombatLog/Ashla.CombatLog.csproj -c Release -o artifacts/nuget -p:ContinuousIntegrationBuild=true
+
+      - name: Push to NuGet
+        shell: pwsh
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if (-not $env:NUGET_API_KEY) { throw 'Add a NUGET_API_KEY secret to this repository first' }
+          Get-ChildItem artifacts/nuget -Filter *.nupkg | ForEach-Object {
+            dotnet nuget push $_.FullName --api-key $env:NUGET_API_KEY --source https://api.nuget.org/v3/index.json --skip-duplicate
+            if ($LASTEXITCODE -ne 0) { throw "Pushing $($_.Name) failed" }
+          }
+
+      - name: Create the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $packages = Get-ChildItem artifacts/nuget -Filter *.nupkg | ForEach-Object { $_.FullName }
+          gh release create $env:GITHUB_REF_NAME @packages --title "Ashla SDK $($env:GITHUB_REF_NAME.Substring(5))" --generate-notes

@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <AshlaPluginsDir Condition="'$(AshlaPluginsDir)' == '' And '$(AshlaDeployPluginToHost)' != 'false'">$(MSBuildThisFileDirectory)../src/Ashla.Host/bin/$(Configuration)/$(TargetFramework)/plugins/</AshlaPluginsDir>
+  </PropertyGroup>
+  <Import Project="../src/Ashla.SDK/build/Ashla.SDK.targets" />
+</Project>

@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../Package.props" />
+  <PropertyGroup>
+    <Description>Build plugins for Ashla, the external overlay and combat-log framework for Star Wars: The Old Republic. Plugin contracts, combat events, overlay panels, and the build step that writes a plugin's manifest.json.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="build/Ashla.SDK.targets" Pack="true" PackagePath="build/Ashla.SDK.targets;buildTransitive/Ashla.SDK.targets" />
+  </ItemGroup>
+</Project>

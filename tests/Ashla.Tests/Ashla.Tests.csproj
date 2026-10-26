@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Ashla.Host/Ashla.Host.csproj" />
+    <ProjectReference Include="../../src/Ashla.Rendering/Ashla.Rendering.csproj" />
+    <ProjectReference Include="../../src/Ashla.CombatLog/Ashla.CombatLog.csproj" />
+    <ProjectReference Include="../../src/Ashla.UI/Ashla.UI.csproj" />
+    <!-- Build order only: integration tests load the real plugin DLLs from their output folders. -->
+    <ProjectReference Include="../../samples/HelloWorld/HelloWorld.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../samples/HelloWorldOverlay/HelloWorldOverlay.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <AssemblyMetadata Include="AshlaRepoRoot" Value="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../'))" />
+    <AssemblyMetadata Include="AshlaConfiguration" Value="$(Configuration)" />
+  </ItemGroup>
+</Project>
