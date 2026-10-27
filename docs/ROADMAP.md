@@ -120,8 +120,9 @@ Ashla isn't a copy of an in-game plugin framework. Five ideas shape everything b
 - [x] Plugins are optional: the player build ships none, and first-run setup lists Holocron's plugins with nothing
       ticked
 - [x] `Ashla.SDK`, `Ashla.UI` and `Ashla.CombatLog` as NuGet packages; the official plugins moved to Holocron
-- [x] Tactical Readout reads BARAS's boss encounter files directly: timers, phases, counters and alerts for 19
-      operations, 34 flashpoints and a lair boss (BARAS data under the MIT license, shipped with the plugin)
+- [x] Tactical Readout reads BARAS's boss encounter files directly: timers, phases, counters and alerts for 17
+      operations (BARAS data under the MIT license, shipped with the plugin); flashpoint bosses are recognized
+- [ ] Tactical Readout timers for flashpoints, which BARAS doesn't have yet, made from recorded pulls
 - [ ] DoT/HoT tracker from the combat log (BARAS's effect definitions: DoTs, HoTs, defensive cooldowns)
 - [ ] Session page: every fight this session with totals, deaths, kills and wipes
 - [ ] Charts (damage, healing and damage taken over time) and a rotation view (abilities in order, with gaps)
