@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <Version>0.3.1</Version>
+    <Version>0.3.2</Version>
     <Product>Ashla</Product>
     <Description>External SWTOR plugin host: overlay panels and combat-log tools. No injection or memory access.</Description>
     <!-- Win32 window queries for overlay tracking and the tray icon (LibraryImport). -->
