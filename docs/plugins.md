@@ -11,7 +11,7 @@ listed in [Holocron](https://github.com/YozoraCho/Holocron).
 
 Create a .NET 10 class library named `MyPlugin`, then:
 
-- reference the `Ashla.SDK` NuGet package (`<PackageReference Include="Ashla.SDK" Version="1.0.0" />`),
+- reference the `Ashla.SDK` NuGet package (`<PackageReference Include="Ashla.SDK" Version="1.1.0" />`),
 - set `<EnableDynamicLoading>true</EnableDynamicLoading>`,
 - set `<Version>`, `<Authors>` and `<Description>` (shown in the plugin manager), and optionally
   `<AshlaPluginName>` (display name) and `<AshlaPluginTags>` (e.g. `combat;timers`),
@@ -187,6 +187,9 @@ Such panels are moved by dragging empty space and shown/hidden from the launcher
 `IPluginPanelAppearance.Appearance` is read every frame, so it can change: set `FitToContent = true` (for example
 in a compact mode) and the window takes the size of what you draw; draw at a fixed width while it's on. When it
 goes back to false, the window returns to the size it had before (the Combat Meter does this).
+Set `ClickThrough = true` for a panel that only shows something, like alert text: the mouse passes straight through
+it to the game, so it can't block clicks, but it also can't be dragged. Turn it off while the player is placing the
+panel (Tactical Readout's alert area does this). `ClickThrough` needs `Ashla.SDK` 1.1.0 or newer.
 
 To match Ashla's look, reference the optional `Ashla.UI` package (provided by Ashla at run time, so it isn't
 copied into your output): `AshlaColors` (the active theme's colors), `AshlaFonts.LargeText`

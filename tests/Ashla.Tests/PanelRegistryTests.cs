@@ -282,6 +282,17 @@ public class PanelRegistryTests
         Assert.Equal(expected, ImGuiPanelChrome.SanitizeTitle(input));
     }
 
+    [Fact]
+    public void ClickThroughPanels_TakeNoMouseInput()
+    {
+        var flags = ImGuiPanelChrome.LookFlags(new Ashla.SDK.PanelAppearance { ShowTitleBar = false, ClickThrough = true });
+
+        Assert.True(flags.HasFlag(Hexa.NET.ImGui.ImGuiWindowFlags.NoInputs));
+        Assert.True(flags.HasFlag(Hexa.NET.ImGui.ImGuiWindowFlags.NoTitleBar));
+        Assert.False(ImGuiPanelChrome.LookFlags(new Ashla.SDK.PanelAppearance()).HasFlag(Hexa.NET.ImGui.ImGuiWindowFlags.NoMouseInputs));
+        Assert.Equal(Hexa.NET.ImGui.ImGuiWindowFlags.None, ImGuiPanelChrome.LookFlags(null));
+    }
+
     private sealed class ThrowingTitlePanel : Ashla.SDK.IPluginPanel
     {
         public string Id => "t";

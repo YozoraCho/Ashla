@@ -26,7 +26,7 @@ The SDK's major version is Ashla's plugin API level.
     <AshlaPluginTags>combat;timers</AshlaPluginTags>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Ashla.SDK" Version="1.0.0" />
+    <PackageReference Include="Ashla.SDK" Version="1.1.0" />
   </ItemGroup>
 </Project>
 ```

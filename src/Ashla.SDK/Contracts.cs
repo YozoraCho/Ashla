@@ -171,4 +171,6 @@ public sealed record PanelAppearance
     public bool NoScrollbar { get; init; }
 
     public bool FitToContent { get; init; }
+
+    public bool ClickThrough { get; init; }
 }

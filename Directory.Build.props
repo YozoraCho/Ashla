@@ -6,7 +6,7 @@
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <IsPackable>false</IsPackable>
-    <AshlaSdkVersion>1.0.0</AshlaSdkVersion>
+    <AshlaSdkVersion>1.1.0</AshlaSdkVersion>
   </PropertyGroup>
 
   <!-- Package metadata shared by every project. Package versions live in Directory.Packages.props. -->

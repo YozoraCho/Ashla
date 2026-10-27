@@ -37,8 +37,7 @@ internal sealed class ImGuiPanelChrome(Func<float> uiScale, Vector2 defaultOrigi
         {
             _measure = panel.WindowId;
         }
-        if (look is { ShowTitleBar: false }) flags |= ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoCollapse;
-        if (look is { NoScrollbar: true }) flags |= ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
+        flags |= LookFlags(look);
         if (look?.BackgroundOpacity is { } opacity) ImGui.SetNextWindowBgAlpha(Math.Clamp(opacity, 0f, 1f));
 
         bool padded = look?.Padding is not null;
@@ -69,6 +68,15 @@ internal sealed class ImGuiPanelChrome(Func<float> uiScale, Vector2 defaultOrigi
     }
 
     public void End() => ImGui.End();
+
+    internal static ImGuiWindowFlags LookFlags(PanelAppearance? look)
+    {
+        var flags = ImGuiWindowFlags.None;
+        if (look is { ShowTitleBar: false }) flags |= ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoCollapse;
+        if (look is { NoScrollbar: true }) flags |= ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
+        if (look is { ClickThrough: true }) flags |= ImGuiWindowFlags.NoInputs | ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoBringToFrontOnFocus;
+        return flags;
+    }
 
     internal static string SanitizeTitle(string title)
     {
