@@ -16,7 +16,11 @@ internal sealed record LauncherSettingsContext(
     PluginStateStore PluginState, Func<IReadOnlyList<InstalledPlugin>> FindPlugins, string OverlayLayoutFile,
     Func<Hotkey, bool>? IsHotkeyFree = null,
     EncounterArchive? Archive = null,
-    PluginStore? Store = null);
+    PluginStore? Store = null,
+    AshlaUpdateChecker? Updater = null,
+    string? CurrentVersion = null,
+    AshlaSelfUpdater? SelfUpdater = null,
+    Action<string>? Restart = null);
 
 internal sealed record PluginStore(HolocronClient Client, PluginInstaller Installer, InstalledSources Sources);
 
@@ -358,6 +362,56 @@ internal sealed class LauncherModel
 
     public IReadOnlyList<PluginUpdate> Updates { get; private set; } = [];
 
+    private Task<AshlaRelease?>? _ashlaFetch;
+
+    public bool CanCheckAshla => _context.Updater is not null;
+
+    public bool CheckingAshla => _ashlaFetch is not null;
+
+    public bool AshlaChecked { get; private set; }
+
+    public AshlaRelease? AshlaLatest { get; private set; }
+
+    public AshlaRelease? AshlaUpdate { get; private set; }
+
+    public string CurrentVersion => _context.CurrentVersion ?? AshlaBuild.Version;
+
+    private Task<UpdateResult>? _selfUpdate;
+    private volatile string? _updateStatus;
+
+    public bool UpdatingAshla => _selfUpdate is not null;
+
+    public string? UpdateStatus => _updateStatus;
+
+    public string? UpdateError { get; private set; }
+
+    public bool CanUpdateInPlace => _context.SelfUpdater is not null && _context.Restart is not null && AshlaUpdate is { CanInstall: true };
+
+    public void UpdateAshla()
+    {
+        if (!CanUpdateInPlace || _selfUpdate is not null) return;
+        var release = AshlaUpdate!;
+        var updater = _context.SelfUpdater!;
+        UpdateError = null;
+        _updateStatus = $"Getting Ashla {release.Version}...";
+        _log.Info($"Updating to Ashla {release.Version}.");
+        var progress = new StatusReporter(text => _updateStatus = text);
+        _selfUpdate = Task.Run(() => updater.UpdateAsync(release, progress, CancellationToken.None));
+    }
+
+    public void Announce(LaunchResult result) => LastResult = result;
+
+    private sealed class StatusReporter(Action<string> report) : IProgress<string>
+    {
+        public void Report(string value) => report(value);
+    }
+
+    public void CheckAshla()
+    {
+        if (_context.Updater is not { } updater || _ashlaFetch is not null) return;
+        _ashlaFetch = Task.Run(() => updater.LatestAsync(CancellationToken.None));
+    }
+
     public bool IsInstalling(string id) => _installs.ContainsKey(id);
 
     public bool Installing => _installs.Count > 0;
@@ -391,7 +445,9 @@ internal sealed class LauncherModel
 
     public void CheckForUpdatesInBackground()
     {
-        if (_settings.Current.Plugins.CheckForUpdates) RefreshCatalog();
+        if (!_settings.Current.Plugins.CheckForUpdates) return;
+        RefreshCatalog();
+        CheckAshla();
     }
 
     public void Install(SettingsDraft draft, CatalogEntry entry)
@@ -449,6 +505,32 @@ internal sealed class LauncherModel
 
     private void PollStore()
     {
+        if (_selfUpdate is { IsCompleted: true } selfUpdate)
+        {
+            _selfUpdate = null;
+            var result = selfUpdate.IsCompletedSuccessfully ? selfUpdate.Result : new UpdateResult(false, "The update failed. The log has the reason.");
+            if (result.Ok && result.NewExe is { } exe && _context.Restart is { } restart)
+            {
+                _updateStatus = "Restarting...";
+                restart(exe);
+                Outcome = LauncherOutcome.Quit;
+            }
+            else
+            {
+                _updateStatus = null;
+                UpdateError = result.Message;
+                _log.Warn(result.Message);
+            }
+        }
+        if (_ashlaFetch is { IsCompleted: true } ashla)
+        {
+            _ashlaFetch = null;
+            var latest = ashla.IsCompletedSuccessfully ? ashla.Result : null;
+            if (latest is not null) AshlaLatest = latest;
+            AshlaUpdate = AshlaUpdateChecker.Newer(AshlaLatest, CurrentVersion);
+            AshlaChecked = true;
+            if (AshlaUpdate is { } update) _log.Info($"Ashla {update.Version} is available (this is {CurrentVersion}).");
+        }
         if (_fetch is { IsCompleted: true } fetch)
         {
             _fetch = null;
@@ -542,6 +624,7 @@ internal sealed class LauncherModel
     public void Play()
     {
         Refresh(force: true);
+        if (UpdatingAshla) return;
         if (!CanPlay)
         {
             LastResult = LaunchResult.Failure("Ashla doesn't know where SWTOR is installed. Set its folder in Settings.");

@@ -118,6 +118,26 @@ internal static class LauncherWindow
             ImGui.PushStyleColor(ImGuiCol.Text, AshlaColors.TextMuted);
             ImGui.TextWrapped("Overlays and combat-log tools for Star Wars: The Old Republic.");
             ImGui.PopStyleColor();
+            if (model.AshlaUpdate is { } release)
+            {
+                ImGui.Dummy(new Vector2(0, 12f * scale));
+                ImGui.TextColored(AshlaColors.Accent, $"Ashla {release.Version} is out");
+                ImGui.PushStyleColor(ImGuiCol.Text, AshlaColors.TextMuted);
+                if (model.UpdatingAshla) ImGui.TextWrapped(model.UpdateStatus ?? "Updating...");
+                else if (model.UpdateError is null)
+                    ImGui.TextWrapped(model.CanUpdateInPlace
+                        ? "Ashla downloads it, checks it and restarts. Your plugins and settings stay."
+                        : "Extract it over this folder to keep your plugins.");
+                ImGui.PopStyleColor();
+                if (model.UpdateError is { } error)
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Text, AshlaColors.Error);
+                    ImGui.TextWrapped(error);
+                    ImGui.PopStyleColor();
+                }
+                ImGui.Spacing();
+                ReleaseButtons(release, new Vector2(-1, 0), stacked: true);
+            }
             EndSidebar();
         }
 
@@ -452,6 +472,12 @@ internal static class LauncherWindow
             ImGui.SetCursorPos(afterTitle);
             ImGui.Dummy(new Vector2(0, 4f * scale));
 
+            float buttonHeight = 50f * scale;
+            float messageHeight = ImGui.GetTextLineHeightWithSpacing() * 2.2f;
+            float bottom = ImGui.GetWindowHeight() - ImGui.GetStyle().WindowPadding.Y - buttonHeight - messageHeight;
+            ImGui.BeginChild("status", new Vector2(0, MathF.Max(bottom - ImGui.GetCursorPosY(), ImGui.GetFrameHeight())), ImGuiChildFlags.None,
+                ImGuiWindowFlags.NoBackground);
+
             if (model.Installation is { } install)
                 Status(AshlaColors.Healing, install.IsSteam ? "SWTOR found (Steam)" : "SWTOR found", install.Folder);
             else if (model.Method == GameLaunchMethod.SwtorLauncher)
@@ -483,16 +509,14 @@ internal static class LauncherWindow
                     "Install from Settings > Plugins.");
             }
 
-            float buttonHeight = 50f * scale;
-            float messageHeight = ImGui.GetTextLineHeightWithSpacing() * 2.2f;
-            float bottom = ImGui.GetWindowHeight() - ImGui.GetStyle().WindowPadding.Y - buttonHeight - messageHeight;
-            if (ImGui.GetCursorPosY() < bottom) ImGui.SetCursorPosY(bottom);
+            ImGui.EndChild();
+            ImGui.SetCursorPosY(bottom);
 
             if (model.LastResult is { } result) Message(result.Ok, result.Message);
             else AshlaDraw.MutedText("Ashla only starts the game's own launcher. It never sees your login.");
 
             ImGui.SetCursorPosY(ImGui.GetWindowHeight() - ImGui.GetStyle().WindowPadding.Y - buttonHeight);
-            if (PlayButton(model.PlayLabel, buttonHeight, model.CanPlay)) model.Play();
+            if (PlayButton(model.PlayLabel, buttonHeight, model.CanPlay && !model.UpdatingAshla)) model.Play();
 
             ImGui.EndChild();
         }
@@ -554,6 +578,35 @@ internal static class LauncherWindow
             }
             ImGui.EndGroup();
             ImGui.Dummy(new Vector2(0, ImGui.GetStyle().ItemSpacing.Y));
+        }
+
+        private void ReleaseButtons(AshlaRelease release, Vector2 size, bool stacked)
+        {
+            ImGui.PushID(release.Version);
+            bool first = true;
+            void Next()
+            {
+                if (!first && !stacked) ImGui.SameLine();
+                first = false;
+            }
+            ImGui.BeginDisabled(model.UpdatingAshla);
+            if (model.CanUpdateInPlace)
+            {
+                Next();
+                if (ImGui.Button(model.UpdatingAshla ? "Updating..." : model.UpdateError is null ? "Update now" : "Try again", size)) model.UpdateAshla();
+            }
+            if (!model.CanUpdateInPlace || model.UpdateError is not null)
+            {
+                Next();
+                if (ImGui.Button(release.Download is null ? "Open the release" : "Download", size)) ShellOpen(release.Target);
+            }
+            ImGui.EndDisabled();
+            if (release.Download is not null)
+            {
+                Next();
+                if (ImGui.Button("What's new", size)) ShellOpen(release.Page);
+            }
+            ImGui.PopID();
         }
 
         private static void Muted(string text)
@@ -1003,13 +1056,17 @@ internal static class LauncherWindow
             if (!model.StoreAvailable) return;
             ImGui.SameLine();
             ImGui.BeginDisabled(model.Fetching);
-            if (ImGui.Button(model.Fetching ? "Checking..." : "Check for updates")) model.RefreshCatalog();
+            if (ImGui.Button(model.Fetching ? "Checking..." : "Check for updates"))
+            {
+                model.RefreshCatalog();
+                model.CheckAshla();
+            }
             ImGui.EndDisabled();
             ImGui.Dummy(new Vector2(0, 2f));
             bool check = draft.CheckForUpdates;
-            if (ImGui.Checkbox("Check for plugin updates when Ashla starts", ref check)) draft.CheckForUpdates = check;
-            Muted("Ashla downloads the plugin lists from Holocron (and your other repositories) on GitHub. Nothing about " +
-                  "you or your game is sent.");
+            if (ImGui.Checkbox("Check for updates when Ashla starts", ref check)) draft.CheckForUpdates = check;
+            Muted("Ashla asks GitHub whether there's a newer Ashla, and downloads the plugin lists from Holocron (and your " +
+                  "other repositories). Nothing about you or your game is sent.");
         }
 
         private void DrawInstalledButtons(SettingsDraft draft, InstalledPlugin plugin, PluginUpdate? update)
@@ -1213,6 +1270,24 @@ internal static class LauncherWindow
         {
             AshlaFonts.LargeText("Ashla", AshlaColors.Text);
             Muted($"Version {version}");
+            if (model.CanCheckAshla)
+            {
+                if (model.AshlaUpdate is { } release)
+                {
+                    ImGui.TextColored(AshlaColors.Accent, $"Ashla {release.Version} is available.");
+                    if (model.UpdatingAshla) Muted(model.UpdateStatus ?? "Updating...");
+                    if (model.UpdateError is { } error) ImGui.TextColored(AshlaColors.Error, error);
+                    ReleaseButtons(release, Vector2.Zero, stacked: false);
+                }
+                else if (model.CheckingAshla) Muted("Checking for a new version...");
+                else if (model.AshlaChecked && model.AshlaLatest is not null) Muted("This is the newest version.");
+                else if (model.AshlaChecked) Muted("Couldn't reach GitHub to check for a new version.");
+                if (!model.CheckingAshla)
+                {
+                    if (model.AshlaUpdate is not null) ImGui.SameLine();
+                    if (ImGui.SmallButton("Check for a new version")) model.CheckAshla();
+                }
+            }
             ImGui.Spacing();
             ImGui.TextWrapped("Overlays and combat-log tools for Star Wars: The Old Republic. Ashla runs beside the game " +
                               "and only reads the combat logs SWTOR writes; it never touches the game itself.");

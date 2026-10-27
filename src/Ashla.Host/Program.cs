@@ -42,6 +42,8 @@ string targetProcess = "swtor";
 string? targetTitle = null;
 WindowBounds? overlayRect = null;
 float? uiScale = null;
+bool checkAshla = AshlaBuild.IsPlayerBuild;
+bool afterUpdate = false;
 
 int argumentIndex = 0;
 for (; argumentIndex < args.Length; argumentIndex++)
@@ -65,6 +67,10 @@ for (; argumentIndex < args.Length; argumentIndex++)
             pluginsDir = Next(); break;
         case "--holocron-url":
             HolocronClient.Official = Next(); break;
+        case "--after-update":
+            afterUpdate = true; break;
+        case "--update-url":
+            AshlaUpdateChecker.Url = Next(); checkAshla = true; break;
         case "--config":
             configDir = Next(); configGiven = true; break;
         case "--ui-scale":
@@ -104,6 +110,23 @@ string Next()
     return args[++argumentIndex];
 }
 
+void RestartInto(string exe)
+{
+    var start = new System.Diagnostics.ProcessStartInfo(exe) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(exe)! };
+    foreach (var argument in args.Length == 0 ? ["--launcher"] : args.Where(a => a != "--after-update")) start.ArgumentList.Add(argument);
+    start.ArgumentList.Add("--after-update");
+    try
+    {
+        System.Diagnostics.Process.Start(start)?.Dispose();
+    }
+    catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException or IOException)
+    {
+        logger.Error($"Ashla was updated but the new version couldn't be started: {error.Message}. Start Ashla.exe again.", error);
+        if (OperatingSystem.IsWindows())
+            NativeDialogs.ShowError("Ashla", "Ashla was updated, but the new version couldn't be started. Start Ashla.exe again.");
+    }
+}
+
 void PrintUsage()
 {
     Console.WriteLine("Ashla.Host [--launcher | --gui | --overlay] [--demo | --replay <file> | --watch [directory]] [options]");
@@ -123,6 +146,7 @@ void PrintUsage()
     Console.WriteLine("--target-title <text>    Overlay: only follow a window whose title contains this text");
     Console.WriteLine("--overlay-rect x,y,w,h   Overlay: pin to a fixed screen rectangle instead (testing; any OS)");
     Console.WriteLine("--holocron-url <url>     Uses another plugin list instead of Holocron's (testing; http only on localhost)");
+    Console.WriteLine("--update-url <url>       Checks this address for new Ashla releases (testing; GitHub's releases-list format)");
     Console.WriteLine("Without --gui, --replay exits when done and --watch runs until Ctrl+C.");
     Console.WriteLine("With --gui, data sources run in the background until the window is closed.");
 }
@@ -131,7 +155,7 @@ using var singleInstance = new Mutex(initiallyOwned: false, @"Local\Ashla.Overla
 if (overlay && AshlaBuild.IsPlayerBuild)
 {
     bool acquired;
-    try { acquired = singleInstance.WaitOne(0); }
+    try { acquired = singleInstance.WaitOne(afterUpdate ? TimeSpan.FromSeconds(30) : TimeSpan.Zero); }
     catch (AbandonedMutexException) { acquired = true; }
     if (!acquired)
     {
@@ -155,7 +179,14 @@ var store = new PluginStore(
     new PluginInstaller(http, pluginsDir, installedSources, new HostLogger("Plugins")),
     installedSources);
 store.Installer.CleanUp();
+var updater = checkAshla ? new AshlaUpdateChecker(http, new HostLogger("Updates")) : null;
+var selfUpdater = AshlaSelfUpdater.CanUpdateItself(AppContext.BaseDirectory)
+    ? new AshlaSelfUpdater(http, AppContext.BaseDirectory, new HostLogger("Updates"))
+    : null;
+selfUpdater?.CleanUp();
 Catalog? launcherCatalog = null;
+AshlaRelease? launcherRelease = null;
+bool launcherCheckedAshla = false;
 string iconPath = Path.Combine(AppContext.BaseDirectory, "ashla.ico");
 var icons = IconFile.Load(iconPath);
 var pluginState = PluginStateStore.Load(Path.Combine(configDir, "plugins.json"), logger);
@@ -167,12 +198,16 @@ if (launcher)
         () => Directory.Exists(DefaultCombatLogFolder()),
         new LauncherSettingsContext(pluginState, () => InstalledPlugins.Find(pluginsDir),
             Path.Combine(configDir, "imgui-overlay.ini"),
-            OperatingSystem.IsWindows() ? IsHotkeyFree : null, archive, store),
+            OperatingSystem.IsWindows() ? IsHotkeyFree : null, archive, store, updater,
+            SelfUpdater: selfUpdater, Restart: RestartInto),
         new HostLogger("Launcher"));
+    if (afterUpdate) model.Announce(LaunchResult.Success($"Updated to Ashla {AshlaBuild.Version}. Your plugins and settings are as you left them."));
     model.CheckForUpdatesInBackground();
     var outcome = LauncherWindow.Run(model, AshlaBuild.Version, new LauncherFolders(pluginsDir, LogHub.Directory, DefaultCombatLogFolder()),
         UiScale(), icons, logger);
     if (model.CatalogLoaded) launcherCatalog = model.Catalog;
+    launcherCheckedAshla = model.AshlaChecked;
+    launcherRelease = model.AshlaLatest;
     if (outcome != LauncherOutcome.Play)
     {
         logger.Info("Closed from the launcher.");
@@ -232,6 +267,15 @@ if (gui && settings.Current.Plugins.CheckForUpdates)
         {
             logger.Warn($"Checking for plugin updates failed: {error.Message}");
         }
+    });
+if (gui && updater is not null && settings.Current.Plugins.CheckForUpdates)
+    _ = Task.Run(async () =>
+    {
+        var latest = launcherCheckedAshla ? launcherRelease : await updater.LatestAsync(CancellationToken.None);
+        if (AshlaUpdateChecker.Newer(latest, AshlaBuild.Version) is not { } release) return;
+        toasts.Show("Ashla update available",
+            $"Ashla {release.Version} is out (you have {AshlaBuild.Version}). Download it from the launcher next time you start Ashla.",
+            ToastKind.Info);
     });
 
 if (gui)
