@@ -52,6 +52,10 @@ In the window: **Ashla ▸ Plugin Manager** lists plugins; **Panels** re-opens c
                    logs in %LOCALAPPDATA%\Ashla\logs)
 --ui-scale <n>     Override the monitor DPI scale, e.g. 1.5 (takes priority over the scale chosen in Settings)
 --holocron-url <url>  Use another plugin list instead of Holocron's (testing; plain http only on localhost)
+--update-url <url>    Check this address for new Ashla releases, in GitHub's releases-list format (testing;
+                      plain http only on localhost). Developer builds only check with this
+--after-update     Passed by Ashla to itself after it updates: waits for the old process to exit and says
+                   which version it updated to
 ```
 
 With `--gui`/`--overlay`, `--demo/--replay/--watch` run in the background until the window closes, and
@@ -121,6 +125,10 @@ username) and attaches them to a GitHub release. To pack locally:
 
 Pushing a tag such as `v0.3.0` runs the same script on GitHub Actions and attaches the zip to a GitHub
 release (`.github/workflows/release.yml`). The tag must match `<Version>` in `src/Ashla.Host/Ashla.Host.csproj`.
+Installed copies offer "Update now" for a release only if its asset is named `Ashla-<version>-win-x64.zip` and
+GitHub lists a `sha256:` digest for it (GitHub adds one to every asset uploaded since June 2025); otherwise
+players get the Download button. Keep the zip's layout flat, with `Ashla.exe` at the top, and never put a
+`plugins` folder in it: the updater skips it either way.
 
 The player build (`-p:AshlaPlayerBuild=true`) differs from the developer build only in startup:
 

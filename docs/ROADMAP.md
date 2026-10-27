@@ -129,7 +129,11 @@ Ashla isn't a copy of an in-game plugin framework. Five ideas shape everything b
       in the Combat Meter
 - [ ] Healer view built from the combat log only (HoTs and effects on group members); no screen reading
 - [ ] Later: timer and effect editors in Tactical Readout, writing BARAS-format files to the user's fights folder
-- [ ] Update the website's "never connects to the internet" wording once plugin downloads or update checks exist
+- [x] Update the website's "never connects to the internet" wording once plugin downloads or update checks exist
+- [x] Tell players when a new Ashla is out (launcher sidebar, Settings > About, a toast after Play)
+- [x] Update Ashla in place: download the zip, check its hash, swap the exe and restart
+- [ ] Plugins state the Ashla version they need; Ashla explains instead of failing to load them
+- [ ] Update button in the plugin-update toast; the update is applied the next time Ashla starts
 
 ## Speculative, conditional — additional integration providers
 - [ ] Obtain authorization and review SWTOR user agreement and applicable rules

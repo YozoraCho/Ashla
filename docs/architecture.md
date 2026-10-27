@@ -65,6 +65,21 @@ All of it is in `Holocron.cs`, driven from `LauncherModel` (Settings > Plugins) 
   ignores `-beta`-style suffixes). With the update check on, the launcher fetches at startup and shows the
   result; after Play, the overlay reuses that catalog (or fetches it) and shows a toast for updates. Updates are
   installed from the launcher only.
+- New Ashla versions (`Launch/AshlaUpdates.cs`): with the same update check on, the player build reads the list of
+  recent releases from GitHub's API (`AshlaUpdateChecker.OfficialUrl`), takes the newest one tagged `v<version>`
+  (drafts, pre-releases and the `sdk-v*` releases are skipped) and compares it with its own version. A newer one is shown in the launcher's sidebar and on Settings > About, with a
+  Download button for the release's `Ashla-<version>-win-x64.zip` (https only), and as a toast after Play. Nothing
+  is downloaded unless the player asks. Developer builds only check with `--update-url`.
+- Updating in place (`Launch/AshlaSelfUpdater.cs`): "Update now" is offered when the player build runs as
+  `Ashla.exe` from its own folder and the release's zip has a `sha256:` digest on GitHub. The zip is downloaded
+  (at most 300 MB), its SHA-256 is compared with the digest, and it's unpacked into `.update-new-<id>` next to
+  the exe (at most 200 files and 600 MB; a single top folder is stripped; `plugins/`, dot-folders and paths
+  outside the folder are skipped). Each file it replaces is moved into `.update-old-<id>` first, because Windows
+  lets a running exe be renamed but not overwritten; `Ashla.exe` goes last. If a move fails, the new files are
+  removed and the old ones moved back. Ashla then starts the new exe with `--after-update` and quits; the new
+  process waits up to 30 seconds for the old one to release the single-instance lock, deletes the `.update-*`
+  folders and says which version it updated to. Files the zip doesn't contain (plugins, anything the player
+  added) are never touched.
 - Entries outside Holocron are shown as not reviewed and need a confirm to install; adding a repository needs a
   confirm too. Repositories are saved right away, not on Save, because the catalog depends on them.
 

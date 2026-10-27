@@ -90,10 +90,17 @@ it's exactly the file Holocron reviewed, and it starts the next time you press P
   itself, so only add lists from people you trust.
 - Plugins you copy into the plugins folder yourself still work; they show as "Added by hand".
 
-Network use: Ashla only goes online to read plugin lists and download the plugins you install. It sends
-nothing about you or your game; the requests are ordinary downloads from GitHub (or the repositories you
-added). Turn off "Check for plugin updates when Ashla starts" in Settings > Plugins > Installed, and Ashla
-only goes online when you open Browse or press Install or Check for updates.
+Updating Ashla: when a new version is out, the launcher says so under the version number. Press Update now:
+Ashla downloads the release from GitHub, checks it against the checksum GitHub publishes, replaces its own
+files and starts again. Your plugins folder and settings are left alone, and so is anything else you keep in
+this folder. If the update can't be installed, nothing is changed and the launcher says why; you can then
+press Download, close Ashla and extract the new zip over this folder yourself.
+
+Network use: Ashla only goes online to ask GitHub whether a new Ashla is out, to read plugin lists, and to
+download the plugins you install and the Ashla updates you ask for. It sends nothing about you or your game; the requests are ordinary
+downloads from GitHub (or the repositories you added). Turn off "Check for updates when Ashla starts" in
+Settings > Plugins > Installed, and Ashla only goes online when you open Browse or press Install or Check for
+updates.
 
 
 Windows "protected your PC" warning
