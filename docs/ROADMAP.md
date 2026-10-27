@@ -86,6 +86,9 @@ Ashla isn't a copy of an in-game plugin framework. Five ideas shape everything b
       plus Ashla's own, for the host and the `Ashla.UI` kit; plugins using `Ashla.UI` follow automatically
 - [x] Auto theme: faction from the class in the log (mirror classes have different names), remembered between
       sessions; choose in Settings > Appearance or first-run setup
+- [x] SWTOR-style launcher: Rajdhani and Barlow, cut-corner buttons, gold heading bars, square markers; follows
+      the chosen theme
+- [ ] The same look for the overlay's own windows (log window, plugin manager, toasts)
 - [ ] Class ids for non-English clients (only English class names and the Sentinel id are known so far)
 
 ### 5. Panels without code

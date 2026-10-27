@@ -87,6 +87,11 @@ All of it is in `Holocron.cs`, driven from `LauncherModel` (Settings > Plugins) 
 
 - The player build always opens the launcher first (`Gui/LauncherWindow.cs`, logic in `Launch/LauncherModel.cs`).
   It closes when the player presses Play, and the overlay then opens in its own window in the same process.
+- The launcher has its own look (`Gui/LauncherChrome.cs`), modeled on SWTOR's interface and the website:
+  Rajdhani for headings, labels and buttons, Barlow for text (both embedded in `Ashla.exe` and loaded through
+  `RenderWindowOptions.FontData`, `LargeFontData` and `ExtraFonts`), square corners, buttons with two cut
+  corners, and a gold bar over each heading. Colors still come from the active theme: Action is the gold,
+  AccentDim and Border make the frame lines. The overlay and plugin panels keep `AshlaTheme`'s style.
 - The first time (no `"SetupDone": true` in `settings.json`), the launcher shows setup instead of the Play view:
   Welcome, SWTOR (folder and start method), Combat Logging (checks the CombatLogs folder), Hotkey, Toasts,
   Theme, Plugins, Finish. The Plugins page reads Holocron's list when the player reaches it, lists only Holocron's

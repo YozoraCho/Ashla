@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <Version>0.3.2</Version>
+    <Version>0.3.3</Version>
     <Product>Ashla</Product>
     <Description>External SWTOR plugin host: overlay panels and combat-log tools. No injection or memory access.</Description>
     <!-- Win32 window queries for overlay tracking and the tray icon (LibraryImport). -->
@@ -39,6 +39,9 @@
     <!-- Loose next to the exe (not inside a single-file bundle) so the tray can load it. -->
     <None Include="Assets\ashla.ico" Link="ashla.ico" CopyToOutputDirectory="PreserveNewest"
           CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\Fonts\*.ttf" LogicalName="Ashla.Fonts.%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Ashla.Tests" />

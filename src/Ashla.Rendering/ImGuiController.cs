@@ -19,6 +19,7 @@ internal sealed unsafe class ImGuiController : IDisposable
     private readonly IInputContext _input;
     private readonly ImGuiGlRenderer _renderer;
     private readonly RenderWindowOptions _options;
+    private readonly Dictionary<string, ImFontPtr> _extraFonts = new(StringComparer.Ordinal);
     private readonly Action<string> _log;
     private readonly ImGuiContextPtr _context;
     private ImGuiStyle _baseStyle;
@@ -174,10 +175,21 @@ internal sealed unsafe class ImGuiController : IDisposable
         _log($"UI scale {UiScale:0.##} (content scale {contentScale:0.##}, framebuffer scale {framebufferScale:0.##}).");
     }
 
+    public ImFontPtr ExtraFont(string name) => _extraFonts.TryGetValue(name, out var font) ? font : default;
+
+    private ImFontPtr AddFont(ImGuiIOPtr io, byte[] data, float size)
+    {
+        if (data.Length == 0) return default;
+        void* copy = ImGui.MemAlloc((nuint)data.Length);
+        fixed (byte* source = data) System.Buffer.MemoryCopy(source, copy, data.Length, data.Length);
+        return io.Fonts.AddFontFromMemoryTTF(copy, data.Length, size);
+    }
+
     private void LoadFonts(ImGuiIOPtr io)
     {
         var fontPath = FindFont();
-        ImFontPtr regular = fontPath is not null ? io.Fonts.AddFontFromFileTTF(fontPath, TrueTypeFontSize) : default;
+        ImFontPtr regular = _options.FontData is { } fontData ? AddFont(io, fontData, TrueTypeFontSize)
+            : fontPath is not null ? io.Fonts.AddFontFromFileTTF(fontPath, TrueTypeFontSize) : default;
         if (regular.IsNull)
         {
             if (fontPath is not null) _log($"Could not load font {fontPath}; using Dear ImGui's built-in font.");
@@ -189,10 +201,18 @@ internal sealed unsafe class ImGuiController : IDisposable
         BaseFontSize = TrueTypeFontSize;
 
         var largePath = FindLargeFont();
-        ImFontPtr large = largePath is not null && largePath != fontPath
-            ? io.Fonts.AddFontFromFileTTF(largePath, TrueTypeFontSize * _options.LargeFontScale)
-            : default;
+        ImFontPtr large = _options.LargeFontData is { } largeData ? AddFont(io, largeData, TrueTypeFontSize * _options.LargeFontScale)
+            : largePath is not null && largePath != fontPath
+                ? io.Fonts.AddFontFromFileTTF(largePath, TrueTypeFontSize * _options.LargeFontScale)
+                : default;
         LargeFont = large.IsNull ? regular : large;
+
+        foreach (var (name, data) in _options.ExtraFonts)
+        {
+            var extra = AddFont(io, data, TrueTypeFontSize);
+            if (!extra.IsNull) _extraFonts[name] = extra;
+            else _log($"Could not load font {name}.");
+        }
     }
 
     private string? FindLargeFont()

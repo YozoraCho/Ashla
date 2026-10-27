@@ -25,6 +25,12 @@ public sealed record RenderWindowOptions
 
     public float LargeFontScale { get; init; } = 1.75f;
 
+    public byte[]? FontData { get; init; }
+
+    public byte[]? LargeFontData { get; init; }
+
+    public IReadOnlyDictionary<string, byte[]> ExtraFonts { get; init; } = new Dictionary<string, byte[]>();
+
     public Action? ConfigureStyle { get; init; }
 
     public bool Overlay { get; init; }
@@ -74,6 +80,10 @@ public sealed class ImGuiWindowHost : IDisposable
     public ImFontPtr LargeFont => _controller?.LargeFont ?? default;
 
     public float LargeFontSize => _controller?.LargeFontSize ?? 0f;
+
+    public float BaseFontSize => _controller?.BaseFontSize ?? 0f;
+
+    public ImFontPtr ExtraFont(string name) => _controller?.ExtraFont(name) ?? default;
 
     public string? GraphicsInfo { get; private set; }
 

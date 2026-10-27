@@ -24,7 +24,7 @@ internal static class LauncherWindow
     public static LauncherOutcome Run(LauncherModel model, string version, LauncherFolders folders, float? uiScale,
         IReadOnlyList<RenderImage> icons, ILogger log)
     {
-        using var window = new ImGuiWindowHost(new RenderWindowOptions
+        using var window = new ImGuiWindowHost(LauncherChrome.WithFonts(new RenderWindowOptions
         {
             Title = "Ashla",
             Width = 760,
@@ -33,9 +33,13 @@ internal static class LauncherWindow
             CenterOnScreen = true,
             UiScaleOverride = uiScale,
             IniFilePath = null,
-            ConfigureStyle = () => AshlaTheme.Apply(ImGui.GetStyle()),
+            ConfigureStyle = () =>
+            {
+                AshlaTheme.Apply(ImGui.GetStyle());
+                LauncherChrome.ApplyStyle(ImGui.GetStyle());
+            },
             Icons = icons
-        }, message => log.Info(message));
+        }), message => log.Info(message));
 
         var view = new View(model, version, folders, window, icons.Count > 0 ? icons[^1] : null);
         window.BeforeFrame += () =>
@@ -82,6 +86,7 @@ internal static class LauncherWindow
         public void Draw()
         {
             AshlaFonts.SetLarge(window.LargeFont, window.LargeFontSize);
+            LauncherChrome.Begin(window);
             float scale = window.UiScale;
             var viewport = ImGui.GetMainViewport();
             ImGui.SetNextWindowPos(viewport.Pos);
@@ -89,13 +94,14 @@ internal static class LauncherWindow
             ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 0f);
             ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0f);
             ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
-            ImGui.PushStyleColor(ImGuiCol.WindowBg, AshlaColors.Background);
+            ImGui.PushStyleColor(ImGuiCol.WindowBg, LauncherChrome.Deep);
             const ImGuiWindowFlags flags = ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoMove |
                                            ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoBringToFrontOnFocus |
                                            ImGuiWindowFlags.NoDocking;
             bool open = ImGui.Begin("##ashla.launcher", flags);
             ImGui.PopStyleColor();
             ImGui.PopStyleVar(3);
+            if (open) DrawTopBar(scale);
             if (open && model.SetupDraft is { } setup)
             {
                 DrawSetupSidebar(scale);
@@ -112,6 +118,16 @@ internal static class LauncherWindow
             ImGui.End();
         }
 
+        private static void DrawTopBar(float scale)
+        {
+            var draw = ImGui.GetWindowDrawList();
+            var min = ImGui.GetWindowPos();
+            float width = ImGui.GetWindowWidth(), height = MathF.Max(2f, MathF.Round(2f * scale));
+            draw.AddRectFilled(min, min + new Vector2(width, height), LauncherChrome.Frame.U32());
+            draw.AddRectFilled(min + new Vector2(MathF.Round(width * 0.7f), 0), min + new Vector2(width, height), LauncherChrome.Gold.U32());
+            ImGui.SetCursorPos(new Vector2(0, height));
+        }
+
         private void DrawSidebar(float scale)
         {
             BeginSidebar(scale);
@@ -120,8 +136,11 @@ internal static class LauncherWindow
             ImGui.PopStyleColor();
             if (model.AshlaUpdate is { } release)
             {
-                ImGui.Dummy(new Vector2(0, 12f * scale));
-                ImGui.TextColored(AshlaColors.Accent, $"Ashla {release.Version} is out");
+                ImGui.Dummy(new Vector2(0, 10f * scale));
+                LauncherChrome.Label("Update available");
+                LauncherChrome.PushFont(LauncherChrome.StrongFont, 16f);
+                ImGui.TextUnformatted($"Ashla {release.Version} is out");
+                ImGui.PopFont();
                 ImGui.PushStyleColor(ImGuiCol.Text, AshlaColors.TextMuted);
                 if (model.UpdatingAshla) ImGui.TextWrapped(model.UpdateStatus ?? "Updating...");
                 else if (model.UpdateError is null)
@@ -143,15 +162,20 @@ internal static class LauncherWindow
 
         private void BeginSidebar(float scale)
         {
-            ImGui.PushStyleColor(ImGuiCol.ChildBg, AshlaColors.Surface);
-            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(22f, 26f) * scale);
+            ImGui.PushStyleColor(ImGuiCol.ChildBg, LauncherChrome.Panel);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(22f, 24f) * scale);
             ImGui.BeginChild("sidebar", new Vector2(SidebarWidth * scale, 0), ImGuiChildFlags.AlwaysUseWindowPadding, NoScroll);
             ImGui.PopStyleVar();
 
-            DrawLogo(72f * scale);
-            ImGui.Spacing();
-            AshlaFonts.LargeText("ASHLA", AshlaColors.Text);
-            AshlaDraw.MutedText($"Version {version}");
+            var draw = ImGui.GetWindowDrawList();
+            var min = ImGui.GetWindowPos();
+            float edge = min.X + ImGui.GetWindowWidth() - 0.5f;
+            draw.AddLine(new Vector2(edge, min.Y), new Vector2(edge, min.Y + ImGui.GetWindowHeight()), LauncherChrome.Line.U32());
+
+            DrawLogo(58f * scale);
+            ImGui.Dummy(new Vector2(0, 2f * scale));
+            LauncherChrome.Tracked("ASHLA", LauncherChrome.HeadingFont, 27f, AshlaColors.Text, 0.22f);
+            LauncherChrome.Label($"Version {version}", AshlaColors.TextMuted, 12f);
             ImGui.Spacing();
         }
 
@@ -160,7 +184,7 @@ internal static class LauncherWindow
             float buttonHeight = ImGui.GetFrameHeight();
             float bottom = ImGui.GetWindowHeight() - ImGui.GetStyle().WindowPadding.Y - buttonHeight;
             if (ImGui.GetCursorPosY() < bottom) ImGui.SetCursorPosY(bottom);
-            if (ImGui.Button("Quit", new Vector2(-1, 0))) model.Quit();
+            if (LauncherChrome.Button("Quit", new Vector2(-1, 0))) model.Quit();
 
             ImGui.EndChild();
             ImGui.PopStyleColor();
@@ -202,31 +226,37 @@ internal static class LauncherWindow
         private void DrawSetupSidebar(float scale)
         {
             BeginSidebar(scale);
-            ImGui.Dummy(new Vector2(0, 6f * scale));
             var draw = ImGui.GetWindowDrawList();
             float row = ImGui.GetFrameHeight();
-            float radius = row * 0.22f;
+            float box = MathF.Round(20f * scale);
+            int number = 1;
             foreach (var step in Enum.GetValues<SetupStep>())
             {
                 bool current = step == model.SetupStep, done = step < model.SetupStep;
                 var origin = ImGui.GetCursorScreenPos();
-                var center = origin + new Vector2(radius + 1f, row * 0.5f);
-                if (done)
-                {
-                    draw.AddCircleFilled(center, radius, AshlaColors.Healing.U32(), 20);
-                }
-                else
-                {
-                    draw.AddCircle(center, radius, (current ? AshlaColors.Accent : AshlaColors.TextMuted).U32(), 20,
-                        MathF.Max(1f, 1.5f * scale));
-                    if (current) draw.AddCircleFilled(center, radius * 0.5f, AshlaColors.Accent.U32(), 16);
-                }
-                ImGui.SetCursorScreenPos(origin + new Vector2(radius * 2f + 12f * scale,
-                    (row - ImGui.GetTextLineHeight()) * 0.5f));
-                ImGui.TextColored(current ? AshlaColors.Text : AshlaColors.TextMuted, StepName(step));
-                ImGui.SetCursorScreenPos(origin + new Vector2(0, row + 2f * scale));
+                var boxMin = new Vector2(origin.X, MathF.Round(origin.Y + (row - box) * 0.5f));
+                var boxMax = boxMin + new Vector2(box);
+                if (done) draw.AddRectFilled(boxMin, boxMax, LauncherChrome.Frame.U32());
+                else if (current) draw.AddRectFilled(boxMin, boxMax, LauncherChrome.Gold.WithAlpha(0.14f).U32());
+                if (!done)
+                    draw.AddRect(boxMin, boxMax, (current ? LauncherChrome.Gold : LauncherChrome.Line).U32());
+
+                LauncherChrome.PushFont(LauncherChrome.LabelFont, 14f);
+                string digit = number.ToString(CultureInfo.InvariantCulture);
+                var digitSize = ImGui.CalcTextSize(digit);
+                draw.AddText(new Vector2(MathF.Round(boxMin.X + (box - digitSize.X) * 0.5f), MathF.Round(boxMin.Y + (box - digitSize.Y) * 0.5f + 1f)),
+                    (current ? LauncherChrome.Gold : done ? AshlaColors.Text : AshlaColors.TextMuted).U32(), digit);
+                ImGui.PopFont();
+
+                LauncherChrome.PushFont(LauncherChrome.LabelFont, 14.5f);
+                string name = StepName(step).ToUpperInvariant();
+                float lineHeight = ImGui.GetTextLineHeight();
+                LauncherChrome.DrawTracked(draw, new Vector2(boxMax.X + 12f * scale, MathF.Round(origin.Y + (row - lineHeight) * 0.5f + 1f)),
+                    (current ? AshlaColors.Text : AshlaColors.TextMuted).U32(), name, 0.1f);
+                ImGui.PopFont();
+                ImGui.Dummy(new Vector2(0, row - ImGui.GetStyle().ItemSpacing.Y + 1f * scale));
+                number++;
             }
-            ImGui.Dummy(Vector2.Zero);
             EndSidebar();
         }
 
@@ -236,7 +266,7 @@ internal static class LauncherWindow
             ImGui.BeginChild("setup", Vector2.Zero, ImGuiChildFlags.AlwaysUseWindowPadding, NoScroll);
             ImGui.PopStyleVar();
 
-            AshlaFonts.LargeText(model.SetupStep switch
+            LauncherChrome.Heading(model.SetupStep switch
             {
                 SetupStep.Welcome => "Welcome to Ashla",
                 SetupStep.Game => "Where's SWTOR?",
@@ -246,13 +276,13 @@ internal static class LauncherWindow
                 SetupStep.Theme => "Theme",
                 SetupStep.Plugins => "Plugins",
                 _ => "All Set"
-            }, AshlaColors.Text);
+            });
             ImGui.Dummy(new Vector2(0, 2f * scale));
 
             float footer = ImGui.GetFrameHeight() + ImGui.GetTextLineHeightWithSpacing() * 2.2f +
                            ImGui.GetStyle().ItemSpacing.Y * 2;
-            ImGui.PushStyleColor(ImGuiCol.FrameBg, AshlaColors.Surface);
-            ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, AshlaColors.SurfaceRaised);
+            ImGui.PushStyleColor(ImGuiCol.FrameBg, LauncherChrome.Panel);
+            ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, LauncherChrome.Panel.Shade(0.05f));
             ImGui.BeginChild("page", new Vector2(0, -footer));
             switch (model.SetupStep)
             {
@@ -296,7 +326,7 @@ internal static class LauncherWindow
             ImGui.TextWrapped("2.  Under Combat Logging, turn on combat logging.");
             ImGui.TextWrapped("3.  If you were already playing, log out to character select and back in.");
             ImGui.Spacing();
-            if (ImGui.Button("Check again")) model.CheckCombatLogging();
+            if (LauncherChrome.Button("Check again")) model.CheckCombatLogging();
             ImGui.Spacing();
             Muted("You can also do this later: Ashla picks the logs up as soon as SWTOR writes the first one.");
         }
@@ -347,7 +377,7 @@ internal static class LauncherWindow
                 var problem = model.Catalog.Repositories.FirstOrDefault(r => r.Repository.Official)?.Problem;
                 Status(AshlaColors.Warning, "No plugins to show",
                     problem ?? "Holocron's list is empty right now. Check Settings > Plugins later.");
-                if (ImGui.Button("Try again")) model.RefreshCatalog();
+                if (LauncherChrome.Button("Try again")) model.RefreshCatalog();
                 return;
             }
             foreach (var entry in choices)
@@ -436,25 +466,22 @@ internal static class LauncherWindow
 
             bool last = model.SetupStep == SetupStep.Done, first = model.SetupStep == SetupStep.Welcome;
             ImGui.SetCursorPosY(ImGui.GetWindowHeight() - style.WindowPadding.Y - ImGui.GetFrameHeight());
-            if (!last && ImGui.Button(model.SetupIsRerun ? "Cancel" : "Skip setup")) model.SkipSetup();
+            if (!last && LauncherChrome.Button(model.SetupIsRerun ? "Cancel" : "Skip setup")) model.SkipSetup();
             if (last) ImGui.Dummy(new Vector2(0, ImGui.GetFrameHeight()));
             bool waiting = last && model.Installing;
             string next = waiting ? "Installing..." : last ? "Finish" : first ? "Get started" : "Next";
-            float nextWidth = MathF.Max(ImGui.CalcTextSize(next).X + style.FramePadding.X * 4, ImGui.GetFontSize() * 7f);
-            float backWidth = ImGui.CalcTextSize("Back").X + style.FramePadding.X * 4;
+            float nextWidth = MathF.Max(LauncherChrome.ButtonWidth(next) + style.FramePadding.X * 2, ImGui.GetFontSize() * 7f);
+            float backWidth = LauncherChrome.ButtonWidth("Back") + style.FramePadding.X;
             float right = ImGui.GetWindowWidth() - style.WindowPadding.X;
             if (!first)
             {
                 ImGui.SameLine(right - nextWidth - style.ItemSpacing.X - backWidth);
-                if (ImGui.Button("Back", new Vector2(backWidth, 0))) model.SetupBack();
+                if (LauncherChrome.Button("Back", new Vector2(backWidth, 0))) model.SetupBack();
             }
             ImGui.SameLine(right - nextWidth);
-            ImGui.PushStyleColor(ImGuiCol.Button, AshlaColors.AccentDim);
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, AshlaColors.Accent.Shade(-0.1f));
             ImGui.BeginDisabled(waiting);
-            if (ImGui.Button(next, new Vector2(nextWidth, 0))) model.SetupNext();
+            if (LauncherChrome.Button(next, new Vector2(nextWidth, 0), primary: true)) model.SetupNext();
             ImGui.EndDisabled();
-            ImGui.PopStyleColor(2);
         }
 
         private void DrawMain(float scale)
@@ -465,12 +492,12 @@ internal static class LauncherWindow
 
             float gearSize = 30f * scale;
             var rowStart = ImGui.GetCursorPos();
-            AshlaFonts.LargeText(model.CanPlay ? "Ready to play" : "Set up SWTOR first", AshlaColors.Text);
+            LauncherChrome.Heading(model.CanPlay ? "Ready to play" : "Set up SWTOR first");
             var afterTitle = ImGui.GetCursorPos();
-            ImGui.SetCursorPos(new Vector2(ImGui.GetWindowWidth() - ImGui.GetStyle().WindowPadding.X - gearSize, rowStart.Y));
+            ImGui.SetCursorPos(new Vector2(ImGui.GetWindowWidth() - ImGui.GetStyle().WindowPadding.X - gearSize, rowStart.Y + 4f * scale));
             if (GearButton(gearSize)) model.OpenSettings();
             ImGui.SetCursorPos(afterTitle);
-            ImGui.Dummy(new Vector2(0, 4f * scale));
+            ImGui.Dummy(new Vector2(0, 6f * scale));
 
             float buttonHeight = 50f * scale;
             float messageHeight = ImGui.GetTextLineHeightWithSpacing() * 2.2f;
@@ -530,7 +557,9 @@ internal static class LauncherWindow
 
             var draw = ImGui.GetWindowDrawList();
             var center = origin + new Vector2(size * 0.5f);
-            if (hovered) draw.AddRectFilled(origin, origin + new Vector2(size), AshlaColors.SurfaceRaised.U32(), 6f);
+            if (hovered)
+                LauncherChrome.Chamfer(draw, origin, origin + new Vector2(size), size * 0.25f, AshlaColors.AccentDim.WithAlpha(0.22f).U32(),
+                    AshlaColors.Accent.U32());
             uint color = (hovered ? AshlaColors.Text : AshlaColors.TextMuted).U32();
             float outer = size * 0.40f, body = size * 0.30f, hole = size * 0.12f, toothHalf = size * 0.075f;
             for (int i = 0; i < 8; i++)
@@ -543,42 +572,19 @@ internal static class LauncherWindow
                 draw.AddQuadFilled(inner - across, tip - across, tip + across, inner + across, color);
             }
             draw.AddCircleFilled(center, body, color, 32);
-            draw.AddCircleFilled(center, hole, AshlaColors.Background.U32(), 24);
+            draw.AddCircleFilled(center, hole, LauncherChrome.Deep.U32(), 24);
             return pressed;
         }
 
         private static bool PlayButton(string label, float height, bool enabled)
         {
-            var action = AshlaColors.Action;
-            ImGui.PushStyleColor(ImGuiCol.Button, enabled ? action : action.WithAlpha(0.35f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, enabled ? action.Shade(0.15f) : action.WithAlpha(0.35f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, action.Shade(-0.15f));
-            ImGui.PushStyleColor(ImGuiCol.Text, AshlaColors.TextOn(action));
-            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, AshlaTheme.Round(4f));
-            bool pushedFont = AshlaFonts.HasLarge;
-            if (pushedFont) ImGui.PushFont(AshlaFonts.Large, AshlaFonts.LargeSize * 0.8f);
-            bool pressed = ImGui.Button(label.ToUpperInvariant() + "##play", new Vector2(-1, height));
-            if (pushedFont) ImGui.PopFont();
-            ImGui.PopStyleVar();
-            ImGui.PopStyleColor(4);
+            ImGui.BeginDisabled(!enabled);
+            bool pressed = LauncherChrome.Button(label + "##play", new Vector2(-1, height), primary: true, fontSize: 22f, tracking: 0.14f);
+            ImGui.EndDisabled();
             return pressed;
         }
 
-        private static void Status(Vector4 color, string title, string? detail)
-        {
-            AshlaDraw.StatusDot(color);
-            ImGui.SameLine();
-            ImGui.BeginGroup();
-            ImGui.TextWrapped(title);
-            if (detail is not null)
-            {
-                ImGui.PushStyleColor(ImGuiCol.Text, AshlaColors.TextMuted);
-                ImGui.TextWrapped(detail);
-                ImGui.PopStyleColor();
-            }
-            ImGui.EndGroup();
-            ImGui.Dummy(new Vector2(0, ImGui.GetStyle().ItemSpacing.Y));
-        }
+        private static void Status(Vector4 color, string title, string? detail) => LauncherChrome.Status(color, title, detail);
 
         private void ReleaseButtons(AshlaRelease release, Vector2 size, bool stacked)
         {
@@ -593,18 +599,19 @@ internal static class LauncherWindow
             if (model.CanUpdateInPlace)
             {
                 Next();
-                if (ImGui.Button(model.UpdatingAshla ? "Updating..." : model.UpdateError is null ? "Update now" : "Try again", size)) model.UpdateAshla();
+                if (LauncherChrome.Button(model.UpdatingAshla ? "Updating...##update" : model.UpdateError is null ? "Update now##update" : "Try again##update",
+                        size, primary: true)) model.UpdateAshla();
             }
             if (!model.CanUpdateInPlace || model.UpdateError is not null)
             {
                 Next();
-                if (ImGui.Button(release.Download is null ? "Open the release" : "Download", size)) ShellOpen(release.Target);
+                if (LauncherChrome.Button(release.Download is null ? "Open the release" : "Download", size)) ShellOpen(release.Target);
             }
             ImGui.EndDisabled();
             if (release.Download is not null)
             {
                 Next();
-                if (ImGui.Button("What's new", size)) ShellOpen(release.Page);
+                if (LauncherChrome.Button("What's new", size)) ShellOpen(release.Page);
             }
             ImGui.PopID();
         }
@@ -632,15 +639,30 @@ internal static class LauncherWindow
             var margin = new Vector2(28f, 24f) * scale;
             ImGui.SetNextWindowPos(viewport.Pos + margin);
             ImGui.SetNextWindowSize(viewport.Size - margin * 2);
-            ImGui.PushStyleColor(ImGuiCol.PopupBg, AshlaColors.Background);
-            ImGui.PushStyleColor(ImGuiCol.ModalWindowDimBg, new Vector4(0f, 0f, 0f, 0.6f));
+            ImGui.PushStyleColor(ImGuiCol.PopupBg, LauncherChrome.Panel);
+            ImGui.PushStyleColor(ImGuiCol.ModalWindowDimBg, new Vector4(0f, 0f, 0f, 0.65f));
+            ImGui.PushStyleVar(ImGuiStyleVar.PopupBorderSize, 0f);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(20f, 18f) * scale);
             bool open = true;
-            const ImGuiWindowFlags flags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove |
+            const ImGuiWindowFlags flags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoTitleBar |
                                            ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoCollapse | NoScroll;
-            if (ImGui.BeginPopupModal(SettingsPopup, ref open, flags))
+            bool shown = ImGui.BeginPopupModal(SettingsPopup, ref open, flags);
+            ImGui.PopStyleVar(2);
+            if (shown)
             {
+                var windowMin = ImGui.GetWindowPos();
+                LauncherChrome.Chamfer(ImGui.GetWindowDrawList(), windowMin, windowMin + ImGui.GetWindowSize(), 16f * scale, 0,
+                    LauncherChrome.Frame.U32());
                 var draft = model.Editing;
                 bool wasCapturing = draft?.CapturingHotkey == true;
+                var headerStart = ImGui.GetCursorPos();
+                LauncherChrome.Heading("Settings", 22f);
+                var afterHeader = ImGui.GetCursorPos();
+                float closeSize = 26f * scale;
+                ImGui.SetCursorPos(new Vector2(ImGui.GetWindowWidth() - ImGui.GetStyle().WindowPadding.X - closeSize, headerStart.Y + 2f * scale));
+                if (CloseButton(closeSize)) open = false;
+                ImGui.SetCursorPos(afterHeader);
+                ImGui.Dummy(new Vector2(0, 2f * scale));
                 if (draft is not null)
                 {
                     DrawSections(draft, scale);
@@ -661,14 +683,31 @@ internal static class LauncherWindow
             ImGui.PopStyleColor(2);
         }
 
+        private static bool CloseButton(float size)
+        {
+            var origin = ImGui.GetCursorScreenPos();
+            bool pressed = ImGui.InvisibleButton("##close", new Vector2(size));
+            bool hovered = ImGui.IsItemHovered();
+            if (hovered) ImGui.SetTooltip("Close without saving");
+            var draw = ImGui.GetWindowDrawList();
+            if (hovered)
+                LauncherChrome.Chamfer(draw, origin, origin + new Vector2(size), size * 0.25f, AshlaColors.AccentDim.WithAlpha(0.22f).U32(),
+                    AshlaColors.Accent.U32());
+            float inset = size * 0.32f;
+            uint color = (hovered ? AshlaColors.Text : AshlaColors.TextMuted).U32();
+            float thickness = MathF.Max(1.5f, size / 16f);
+            draw.AddLine(origin + new Vector2(inset), origin + new Vector2(size - inset), color, thickness);
+            draw.AddLine(origin + new Vector2(size - inset, inset), origin + new Vector2(inset, size - inset), color, thickness);
+            return pressed;
+        }
+
         private float FooterHeight => ImGui.GetFrameHeightWithSpacing() + ImGui.GetStyle().ItemSpacing.Y * 2;
 
         private void DrawSections(SettingsDraft draft, float scale)
         {
             ImGui.BeginChild("sections", new Vector2(150f * scale, -FooterHeight), ImGuiChildFlags.None, NoScroll);
             foreach (var section in Enum.GetValues<SettingsSection>())
-                if (ImGui.Selectable(section.ToString(), draft.Section == section, ImGuiSelectableFlags.None,
-                        new Vector2(0, ImGui.GetFrameHeight())))
+                if (LauncherChrome.NavItem($"{section}##section", draft.Section == section))
                 {
                     draft.Section = section;
                     draft.CapturingHotkey = false;
@@ -678,10 +717,9 @@ internal static class LauncherWindow
 
         private void DrawSectionContent(SettingsDraft draft, float scale)
         {
-            ImGui.PushStyleColor(ImGuiCol.ChildBg, AshlaColors.Surface);
-            ImGui.PushStyleColor(ImGuiCol.FrameBg, AshlaColors.Background);
-            ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, AshlaColors.SurfaceRaised);
-            ImGui.PushStyleColor(ImGuiCol.Button, AshlaColors.SurfaceRaised);
+            ImGui.PushStyleColor(ImGuiCol.ChildBg, LauncherChrome.Deep);
+            ImGui.PushStyleColor(ImGuiCol.FrameBg, LauncherChrome.Panel);
+            ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, LauncherChrome.Panel.Shade(0.05f));
             ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(18f, 14f) * scale);
             ImGui.BeginChild("section", new Vector2(0, -FooterHeight), ImGuiChildFlags.AlwaysUseWindowPadding);
             ImGui.PopStyleVar();
@@ -695,15 +733,16 @@ internal static class LauncherWindow
                 case SettingsSection.About: DrawAbout(); break;
             }
             ImGui.EndChild();
-            ImGui.PopStyleColor(4);
+            ImGui.PopStyleColor(3);
+            LauncherChrome.FrameItem(10f);
         }
 
         private void DrawFooter(SettingsDraft draft)
         {
             ImGui.Dummy(new Vector2(0, ImGui.GetStyle().ItemSpacing.Y * 0.5f));
             var style = ImGui.GetStyle();
-            float saveWidth = ImGui.CalcTextSize("Save").X + style.FramePadding.X * 4;
-            float cancelWidth = ImGui.CalcTextSize("Cancel").X + style.FramePadding.X * 4;
+            float saveWidth = LauncherChrome.ButtonWidth("Save") + style.FramePadding.X * 2;
+            float cancelWidth = LauncherChrome.ButtonWidth("Cancel") + style.FramePadding.X;
             float buttonsWidth = saveWidth + cancelWidth + style.ItemSpacing.X;
 
             float textWidth = ImGui.GetContentRegionAvail().X - buttonsWidth - style.ItemSpacing.X;
@@ -716,17 +755,14 @@ internal static class LauncherWindow
             ImGui.EndGroup();
 
             ImGui.SameLine(ImGui.GetWindowWidth() - style.WindowPadding.X - buttonsWidth);
-            if (ImGui.Button("Cancel", new Vector2(cancelWidth, 0))) model.CancelSettings();
+            if (LauncherChrome.Button("Cancel", new Vector2(cancelWidth, 0))) model.CancelSettings();
             ImGui.SameLine();
-            ImGui.PushStyleColor(ImGuiCol.Button, AshlaColors.AccentDim);
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, AshlaColors.Accent.Shade(-0.1f));
-            if (ImGui.Button("Save", new Vector2(saveWidth, 0))) model.SaveSettings();
-            ImGui.PopStyleColor(2);
+            if (LauncherChrome.Button("Save", new Vector2(saveWidth, 0), primary: true)) model.SaveSettings();
         }
 
         private void DrawGame(SettingsDraft draft)
         {
-            ImGui.SeparatorText("SWTOR Folder");
+            LauncherChrome.Section("SWTOR Folder");
             string folder = draft.FolderInput;
             ImGui.SetNextItemWidth(-1);
             if (ImGui.InputTextWithHint("##folder", "Empty: find SWTOR automatically", ref folder, 1024))
@@ -734,13 +770,13 @@ internal static class LauncherWindow
 
             if (OperatingSystem.IsWindows())
             {
-                if (ImGui.Button("Browse...") && NativeFileDialog.PickFile(window.NativeHandle,
+                if (LauncherChrome.Button("Browse...") && NativeFileDialog.PickFile(window.NativeHandle,
                         "Find SWTOR's launcher.exe", "SWTOR launcher (launcher.exe)", "launcher.exe",
                         model.DraftInstallation(draft)?.Folder ?? model.Installation?.Folder) is { } picked)
                     model.FolderPicked(draft, picked);
                 ImGui.SameLine();
             }
-            if (ImGui.Button("Find automatically")) model.FindAutomatically(draft);
+            if (LauncherChrome.Button("Find automatically")) model.FindAutomatically(draft);
 
             var found = model.DraftInstallation(draft);
             if (found is not null)
@@ -753,12 +789,12 @@ internal static class LauncherWindow
                 Muted("Ashla looks for SWTOR in your Steam libraries and the standard install folder.");
 
             ImGui.Dummy(new Vector2(0, 4f));
-            ImGui.SeparatorText("When You Press Play");
-            if (ImGui.RadioButton("Open the SWTOR launcher", draft.Method == GameLaunchMethod.SwtorLauncher))
+            LauncherChrome.Section("When You Press Play");
+            if (LauncherChrome.Radio("Open the SWTOR launcher", draft.Method == GameLaunchMethod.SwtorLauncher))
                 draft.Method = GameLaunchMethod.SwtorLauncher;
-            if (ImGui.RadioButton("Start SWTOR through Steam", draft.Method == GameLaunchMethod.Steam))
+            if (LauncherChrome.Radio("Start SWTOR through Steam", draft.Method == GameLaunchMethod.Steam))
                 draft.Method = GameLaunchMethod.Steam;
-            if (ImGui.RadioButton("I'll start SWTOR myself", draft.Method == GameLaunchMethod.Manual))
+            if (LauncherChrome.Radio("I'll start SWTOR myself", draft.Method == GameLaunchMethod.Manual))
                 draft.Method = GameLaunchMethod.Manual;
             Muted("Ashla only starts the game's own launcher. It never sees your login.");
         }
@@ -768,22 +804,22 @@ internal static class LauncherWindow
             DrawHotkey(draft, inSettings: true);
 
             ImGui.Dummy(new Vector2(0, 4f));
-            ImGui.SeparatorText("Toasts");
+            LauncherChrome.Section("Toasts");
             CornerPicker(draft, window.UiScale);
 
             ImGui.Dummy(new Vector2(0, 4f));
-            ImGui.SeparatorText("Panel Positions");
-            if (ImGui.Button("Reset panel positions")) model.ResetPanelPositions(draft);
+            LauncherChrome.Section("Panel Positions");
+            if (LauncherChrome.Button("Reset panel positions")) model.ResetPanelPositions(draft);
             Muted("Puts every overlay panel back in its starting place, for example if one ended up off screen.");
         }
 
         private void DrawAppearance(SettingsDraft draft)
         {
-            ImGui.SeparatorText("Theme");
+            LauncherChrome.Section("Theme");
             ThemePicker(draft, window.UiScale);
 
             ImGui.Dummy(new Vector2(0, 4f));
-            ImGui.SeparatorText("UI Scale");
+            LauncherChrome.Section("UI Scale");
             ImGui.SetNextItemWidth(ImGui.GetFontSize() * 16f);
             if (ImGui.BeginCombo("##scale", ScaleLabel(draft.UiScale)))
             {
@@ -800,29 +836,26 @@ internal static class LauncherWindow
 
         private static void DrawHotkey(SettingsDraft draft, bool inSettings)
         {
-            if (inSettings) ImGui.SeparatorText("Show/Hide Hotkey");
+            if (inSettings) LauncherChrome.Section("Show/Hide Hotkey");
             float boxWidth = ImGui.GetFontSize() * 12f;
             if (draft.CapturingHotkey)
             {
                 CaptureHotkey(draft);
-                ImGui.PushStyleColor(ImGuiCol.Button, AshlaColors.AccentDim);
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, AshlaColors.AccentDim);
-                if (ImGui.Button("Press the keys...##hotkey", new Vector2(boxWidth, 0)))
+                if (LauncherChrome.Button("Press the keys...##hotkey", new Vector2(boxWidth, 0), primary: true))
                     LauncherModel.CancelHotkeyCapture(draft);
-                ImGui.PopStyleColor(2);
                 Muted("Hold Ctrl or Alt (Shift too, if you like) and press a key. Esc cancels, Backspace sets no hotkey.");
                 return;
             }
 
-            if (ImGui.Button((draft.ToggleHotkey?.ToString() ?? "None") + "##hotkey", new Vector2(boxWidth, 0)))
+            if (LauncherChrome.Button((draft.ToggleHotkey?.ToString() ?? "None") + "##hotkey", new Vector2(boxWidth, 0)))
                 LauncherModel.StartHotkeyCapture(draft);
             if (ImGui.IsItemHovered()) ImGui.SetTooltip("Click, then press the new combination");
             ImGui.SameLine();
-            if (ImGui.Button("Change")) LauncherModel.StartHotkeyCapture(draft);
+            if (LauncherChrome.Button("Change")) LauncherModel.StartHotkeyCapture(draft);
             if (draft.ToggleHotkey != Hotkey.Default)
             {
                 ImGui.SameLine();
-                if (ImGui.Button("Default")) draft.ToggleHotkey = Hotkey.Default;
+                if (LauncherChrome.Button("Default")) draft.ToggleHotkey = Hotkey.Default;
                 if (ImGui.IsItemHovered()) ImGui.SetTooltip($"Go back to {Hotkey.DefaultText}");
             }
             if (draft.ToggleHotkey is null || inSettings) Muted(draft.ToggleHotkey is null
@@ -894,9 +927,9 @@ internal static class LauncherWindow
                     Swatch(draw, model.ThemeFor(choice), origin, size, scale);
                 }
                 float outline = chosen ? 2f * scale : 1f;
-                var outlineColor = chosen ? AshlaColors.Accent : hovered ? AshlaColors.TextMuted : AshlaColors.Border;
+                var outlineColor = chosen ? LauncherChrome.Gold : hovered ? AshlaColors.TextMuted : AshlaColors.Border;
                 draw.AddRect(origin - new Vector2(outline * 0.5f), origin + size + new Vector2(outline * 0.5f),
-                    outlineColor.U32(), AshlaTheme.Round(5f * scale), ImDrawFlags.None, outline);
+                    outlineColor.U32(), 0f, ImDrawFlags.None, outline);
                 string name = choice == ThemeChoice.Auto ? "Auto" : model.ThemeFor(choice).Name;
                 var nameSize = ImGui.CalcTextSize(name);
                 draw.AddText(origin + new Vector2((cardWidth - nameSize.X) * 0.5f, swatchHeight + 5f * scale),
@@ -949,8 +982,8 @@ internal static class LauncherWindow
             float inset = 7f * scale;
             var origin = ImGui.GetCursorScreenPos();
             var draw = ImGui.GetWindowDrawList();
-            draw.AddRectFilled(origin, origin + screen, AshlaColors.Background.U32(), 4f * scale);
-            draw.AddRect(origin, origin + screen, AshlaColors.Border.U32(), 4f * scale);
+            draw.AddRectFilled(origin, origin + screen, LauncherChrome.Panel.U32());
+            draw.AddRect(origin, origin + screen, AshlaColors.Border.U32());
 
             foreach (var corner in Enum.GetValues<ToastCorner>())
             {
@@ -962,12 +995,10 @@ internal static class LauncherWindow
                 if (ImGui.InvisibleButton($"##corner.{corner}", toast)) draft.ToastCorner = corner;
                 bool hovered = ImGui.IsItemHovered(), chosen = draft.ToastCorner == corner;
                 if (hovered) ImGui.SetTooltip(CornerName(corner));
-                var fill = chosen ? AshlaColors.AccentDim : hovered ? AshlaColors.SurfaceRaised : AshlaColors.Surface;
-                draw.AddRectFilled(min, min + toast, fill.U32(), 3f * scale);
-                draw.AddRect(min, min + toast, (chosen ? AshlaColors.Accent : AshlaColors.Border).U32(), 3f * scale);
-                if (chosen)
-                    draw.AddRectFilled(min, min + new Vector2(3f * scale, toast.Y), AshlaColors.Accent.U32(), 3f * scale,
-                        ImDrawFlags.RoundCornersLeft);
+                var fill = chosen ? AshlaColors.AccentDim.WithAlpha(0.5f) : hovered ? AshlaColors.SurfaceRaised : AshlaColors.Surface;
+                draw.AddRectFilled(min, min + toast, fill.U32());
+                draw.AddRect(min, min + toast, (chosen ? LauncherChrome.Gold : AshlaColors.Border).U32());
+                if (chosen) draw.AddRectFilled(min, min + new Vector2(3f * scale, toast.Y), LauncherChrome.Gold.U32());
             }
 
             ImGui.SetCursorScreenPos(origin + new Vector2(screen.X + 14f * scale, 0f));
@@ -991,26 +1022,26 @@ internal static class LauncherWindow
         private string? _confirmRemove;
         private string? _confirmUnreviewed;
 
+        private int _pluginTab;
+
         private void DrawPlugins(SettingsDraft draft)
         {
-            if (!ImGui.BeginTabBar("plugin-tabs")) return;
-            if (ImGui.BeginTabItem("Installed"))
+            string[] tabs = model.StoreAvailable ? ["Installed", "Browse", "Repositories"] : ["Installed"];
+            if (_pluginTab >= tabs.Length) _pluginTab = 0;
+            LauncherChrome.Tabs("plugin-tabs", tabs, ref _pluginTab);
+            switch (_pluginTab)
             {
-                DrawInstalled(draft);
-                ImGui.EndTabItem();
+                case 1:
+                    if (!model.CatalogLoaded) model.RefreshCatalog();
+                    DrawBrowse(draft);
+                    break;
+                case 2:
+                    DrawRepositories(draft);
+                    break;
+                default:
+                    DrawInstalled(draft);
+                    break;
             }
-            if (model.StoreAvailable && ImGui.BeginTabItem("Browse"))
-            {
-                if (!model.CatalogLoaded) model.RefreshCatalog();
-                DrawBrowse(draft);
-                ImGui.EndTabItem();
-            }
-            if (model.StoreAvailable && ImGui.BeginTabItem("Repositories"))
-            {
-                DrawRepositories(draft);
-                ImGui.EndTabItem();
-            }
-            ImGui.EndTabBar();
         }
 
         private void DrawInstalled(SettingsDraft draft)
@@ -1037,13 +1068,13 @@ internal static class LauncherWindow
                 if (_confirmRemove == plugin.Id)
                 {
                     Message(false, $"Remove {plugin.DisplayName}? Its files are deleted; its settings stay.");
-                    if (ImGui.Button("Remove it"))
+                    if (LauncherChrome.Button("Remove it"))
                     {
                         model.Remove(draft, plugin);
                         _confirmRemove = null;
                     }
                     ImGui.SameLine();
-                    if (ImGui.Button("Keep it")) _confirmRemove = null;
+                    if (LauncherChrome.Button("Keep it")) _confirmRemove = null;
                 }
                 ImGui.Unindent(indent);
                 ImGui.Dummy(new Vector2(0, 2f));
@@ -1052,11 +1083,11 @@ internal static class LauncherWindow
 
             ImGui.Separator();
             Muted("Turned-off plugins don't load. Changes apply when you press Play.");
-            if (ImGui.Button("Open plugins folder")) OpenFolder(folders.Plugins);
+            if (LauncherChrome.Button("Open plugins folder")) OpenFolder(folders.Plugins);
             if (!model.StoreAvailable) return;
             ImGui.SameLine();
             ImGui.BeginDisabled(model.Fetching);
-            if (ImGui.Button(model.Fetching ? "Checking..." : "Check for updates"))
+            if (LauncherChrome.Button(model.Fetching ? "Checking..." : "Check for updates"))
             {
                 model.RefreshCatalog();
                 model.CheckAshla();
@@ -1074,14 +1105,14 @@ internal static class LauncherWindow
             var style = ImGui.GetStyle();
             string updateLabel = update is null ? "" : $"Update to {update.Entry.Plugin.Version}";
             bool busy = model.IsInstalling(plugin.Id);
-            float width = ImGui.CalcTextSize("Remove").X + style.FramePadding.X * 2;
-            if (busy) width += ImGui.CalcTextSize("Installing...").X + style.FramePadding.X * 2 + style.ItemSpacing.X;
-            else if (update is not null) width += ImGui.CalcTextSize(updateLabel).X + style.FramePadding.X * 2 + style.ItemSpacing.X;
+            float width = LauncherChrome.ButtonWidth("Remove");
+            if (busy) width += LauncherChrome.ButtonWidth("Installing...") + style.ItemSpacing.X;
+            else if (update is not null) width += LauncherChrome.ButtonWidth(updateLabel) + style.ItemSpacing.X;
             SameLineRight(width);
             if (busy)
             {
                 ImGui.BeginDisabled();
-                ImGui.Button("Installing...");
+                LauncherChrome.Button("Installing...");
                 ImGui.EndDisabled();
                 ImGui.SameLine();
             }
@@ -1091,7 +1122,7 @@ internal static class LauncherWindow
                 ImGui.SameLine();
             }
             ImGui.BeginDisabled(busy);
-            if (ImGui.Button("Remove")) _confirmRemove = plugin.Id;
+            if (LauncherChrome.Button("Remove")) _confirmRemove = plugin.Id;
             ImGui.EndDisabled();
         }
 
@@ -1101,7 +1132,7 @@ internal static class LauncherWindow
             ImGui.InputTextWithHint("##search", "Search plugins", ref _search, 100);
             ImGui.SameLine();
             ImGui.BeginDisabled(model.Fetching);
-            if (ImGui.Button(model.Fetching ? "Loading..." : "Refresh")) model.RefreshCatalog();
+            if (LauncherChrome.Button(model.Fetching ? "Loading..." : "Refresh")) model.RefreshCatalog();
             ImGui.EndDisabled();
             foreach (var repository in model.Catalog.Repositories.Where(r => r.Problem is not null))
                 Message(false, repository.Problem!);
@@ -1147,11 +1178,10 @@ internal static class LauncherWindow
                 : installed is null ? ("Install", true)
                 : PluginVersions.IsNewer(plugin.Version, installed.Version) ? ($"Update to {plugin.Version}", true)
                 : ("Installed", false);
-            var style = ImGui.GetStyle();
-            float width = ImGui.CalcTextSize(label).X + style.FramePadding.X * 2;
+            float width = LauncherChrome.ButtonWidth(label);
             SameLineRight(width);
             ImGui.BeginDisabled(!enabled);
-            bool pressed = enabled ? ActionButton(label) : ImGui.Button(label);
+            bool pressed = enabled ? ActionButton(label) : LauncherChrome.Button(label);
             ImGui.EndDisabled();
             if (pressed)
             {
@@ -1169,13 +1199,13 @@ internal static class LauncherWindow
             {
                 Message(false, $"{plugin.DisplayName} hasn't been reviewed by Holocron. It will run with the same access to " +
                                "your PC as Ashla. Install it only if you trust where it came from.");
-                if (ImGui.Button("Install anyway"))
+                if (LauncherChrome.Button("Install anyway"))
                 {
                     model.Install(draft, entry);
                     _confirmUnreviewed = null;
                 }
                 ImGui.SameLine();
-                if (ImGui.Button("Cancel")) _confirmUnreviewed = null;
+                if (LauncherChrome.Button("Cancel")) _confirmUnreviewed = null;
             }
             ImGui.Separator();
             ImGui.PopID();
@@ -1189,9 +1219,9 @@ internal static class LauncherWindow
                 ImGui.TextColored(AshlaColors.Text, repository.Official ? "Holocron (official, reviewed)" : repository.Name);
                 if (!repository.Official)
                 {
-                    float width = ImGui.CalcTextSize("Remove").X + ImGui.GetStyle().FramePadding.X * 2;
+                    float width = LauncherChrome.ButtonWidth("Remove");
                     SameLineRight(width);
-                    if (ImGui.Button("Remove")) model.RemoveRepository(draft, repository.Url);
+                    if (LauncherChrome.Button("Remove")) model.RemoveRepository(draft, repository.Url);
                 }
                 ImGui.PushTextWrapPos(0f);
                 Muted(repository.Url);
@@ -1200,12 +1230,11 @@ internal static class LauncherWindow
             }
 
             ImGui.Dummy(new Vector2(0, 4f));
-            ImGui.SeparatorText("Add a Repository");
-            ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - ImGui.CalcTextSize("Add").X - ImGui.GetStyle().FramePadding.X * 2 -
-                                   ImGui.GetStyle().ItemSpacing.X);
+            LauncherChrome.Section("Add a Repository");
+            ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - LauncherChrome.ButtonWidth("Add") - ImGui.GetStyle().ItemSpacing.X);
             ImGui.InputTextWithHint("##repository", "https://.../repo.json", ref _repositoryInput, 300);
             ImGui.SameLine();
-            if (ImGui.Button("Add"))
+            if (LauncherChrome.Button("Add"))
             {
                 if (HolocronClient.CheckRepositoryUrl(_repositoryInput) is { } problem)
                 {
@@ -1222,14 +1251,14 @@ internal static class LauncherWindow
             {
                 Message(false, "Plugins from other repositories aren't reviewed by Holocron. A plugin runs with the same access " +
                                "to your PC as Ashla, so only add repositories from people you trust.");
-                if (ImGui.Button("Add anyway"))
+                if (LauncherChrome.Button("Add anyway"))
                 {
                     model.AddRepository(draft, url);
                     _confirmRepository = null;
                     _repositoryInput = "";
                 }
                 ImGui.SameLine();
-                if (ImGui.Button("Cancel")) _confirmRepository = null;
+                if (LauncherChrome.Button("Cancel")) _confirmRepository = null;
             }
             else
             {
@@ -1254,27 +1283,17 @@ internal static class LauncherWindow
             if (available > width) ImGui.SetCursorPosX(ImGui.GetCursorPosX() + available - width);
         }
 
-        private static bool ActionButton(string label)
-        {
-            var color = AshlaColors.Action;
-            ImGui.PushStyleColor(ImGuiCol.Button, color.WithAlpha(0.85f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, color.Shade(0.15f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, color.Shade(-0.15f));
-            ImGui.PushStyleColor(ImGuiCol.Text, AshlaColors.TextOn(color));
-            bool pressed = ImGui.Button(label);
-            ImGui.PopStyleColor(4);
-            return pressed;
-        }
+        private static bool ActionButton(string label) => LauncherChrome.Button(label, primary: true);
 
         private void DrawAbout()
         {
-            AshlaFonts.LargeText("Ashla", AshlaColors.Text);
+            LauncherChrome.Heading("Ashla", 22f);
             Muted($"Version {version}");
             if (model.CanCheckAshla)
             {
                 if (model.AshlaUpdate is { } release)
                 {
-                    ImGui.TextColored(AshlaColors.Accent, $"Ashla {release.Version} is available.");
+                    ImGui.TextColored(LauncherChrome.Gold, $"Ashla {release.Version} is available.");
                     if (model.UpdatingAshla) Muted(model.UpdateStatus ?? "Updating...");
                     if (model.UpdateError is { } error) ImGui.TextColored(AshlaColors.Error, error);
                     ReleaseButtons(release, Vector2.Zero, stacked: false);
@@ -1285,7 +1304,7 @@ internal static class LauncherWindow
                 if (!model.CheckingAshla)
                 {
                     if (model.AshlaUpdate is not null) ImGui.SameLine();
-                    if (ImGui.SmallButton("Check for a new version")) model.CheckAshla();
+                    if (LauncherChrome.Button("Check for a new version")) model.CheckAshla();
                 }
             }
             ImGui.Spacing();
@@ -1293,23 +1312,23 @@ internal static class LauncherWindow
                               "and only reads the combat logs SWTOR writes; it never touches the game itself.");
             ImGui.Spacing();
             ImGui.TextWrapped("Free software under the GNU Affero General Public License v3.0.");
-            if (ImGui.Button("Source code on GitHub")) ShellOpen(SourceUrl);
+            if (LauncherChrome.Button("Source code on GitHub")) ShellOpen(SourceUrl);
             var license = Path.Combine(AppContext.BaseDirectory, "LICENSE.txt");
             var notices = Path.Combine(AppContext.BaseDirectory, "THIRD-PARTY-NOTICES.txt");
             if (File.Exists(license))
             {
                 ImGui.SameLine();
-                if (ImGui.Button("License")) ShellOpen(license);
+                if (LauncherChrome.Button("License")) ShellOpen(license);
             }
             if (File.Exists(notices))
             {
                 ImGui.SameLine();
-                if (ImGui.Button("Included libraries")) ShellOpen(notices);
+                if (LauncherChrome.Button("Included libraries")) ShellOpen(notices);
             }
             if (folders.Logs is { } logs)
             {
                 ImGui.SameLine();
-                if (ImGui.Button("Logs folder")) OpenFolder(logs);
+                if (LauncherChrome.Button("Logs folder")) OpenFolder(logs);
             }
             ImGui.Spacing();
             ImGui.PushStyleColor(ImGuiCol.Text, AshlaColors.TextMuted);
@@ -1318,14 +1337,14 @@ internal static class LauncherWindow
             ImGui.PopStyleColor();
 
             ImGui.Dummy(new Vector2(0, 4f));
-            ImGui.SeparatorText("Setup");
-            if (ImGui.Button("Run setup again")) model.StartSetup(rerun: true);
+            LauncherChrome.Section("Setup");
+            if (LauncherChrome.Button("Run setup again")) model.StartSetup(rerun: true);
             Muted("Goes through the SWTOR folder, combat logging and the hotkey again. Cancel leaves everything as it is.");
         }
 
         private void DrawFights(SettingsDraft draft)
         {
-            ImGui.SeparatorText("Saved Fights");
+            LauncherChrome.Section("Saved Fights");
             bool save = draft.SaveFights;
             if (ImGui.Checkbox("Save fights as they end", ref save)) draft.SaveFights = save;
             Muted("Each fight is kept on this PC, so you can open it again in the Combat Meter, also after a restart.");
@@ -1346,33 +1365,33 @@ internal static class LauncherWindow
                 : $"{ImportResult.Plural(count, "saved fight")}, {ImportResult.Size(archive.SizeOnDisk())}.");
 
             ImGui.Dummy(new Vector2(0, 4f));
-            ImGui.SeparatorText("Older Logs");
+            LauncherChrome.Section("Older Logs");
             if (OperatingSystem.IsWindows())
             {
-                if (ImGui.Button("Open combat log...") && NativeFileDialog.PickFile(window.NativeHandle,
+                if (LauncherChrome.Button("Open combat log...") && NativeFileDialog.PickFile(window.NativeHandle,
                         "Open a SWTOR combat log", "Combat logs (combat_*.txt)", "combat_*.txt;*.txt",
                         folders.CombatLogs) is { } picked)
                     model.ImportLog(draft, picked);
                 ImGui.SameLine();
             }
-            if (ImGui.Button("Open saved fights folder")) OpenFolder(archive.Directory);
+            if (LauncherChrome.Button("Open saved fights folder")) OpenFolder(archive.Directory);
             Muted("Open combat log adds the fights from a log SWTOR wrote earlier, for example from before you used Ashla.");
 
             ImGui.Dummy(new Vector2(0, 4f));
             if (count == 0) return;
             if (!_confirmDeleteFights)
             {
-                if (ImGui.Button("Delete all saved fights")) _confirmDeleteFights = true;
+                if (LauncherChrome.Button("Delete all saved fights")) _confirmDeleteFights = true;
                 return;
             }
             Message(false, $"Delete {ImportResult.Plural(count, "saved fight")}? This can't be undone.");
-            if (ImGui.Button("Delete"))
+            if (LauncherChrome.Button("Delete"))
             {
                 model.DeleteAllFights(draft);
                 _confirmDeleteFights = false;
             }
             ImGui.SameLine();
-            if (ImGui.Button("Keep them")) _confirmDeleteFights = false;
+            if (LauncherChrome.Button("Keep them")) _confirmDeleteFights = false;
         }
 
         private static string KeepLabel(int days) => days <= 0 ? "Forever" : $"{days} days";
